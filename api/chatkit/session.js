@@ -22,9 +22,18 @@ export default async function handler(req, res) {
   try {
     const { message, company } = req.body;
 
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
+// 🔥 LEAD DETECTION
+if (message.match(/\d{7,}/)) {
+  console.log("📞 Lead detected:", message);
+}
+
+if (message.includes("@")) {
+  console.log("📧 Email detected:", message);
+}
+
+if (!message) {
+  return res.status(400).json({ error: "Message is required" });
+}
 
     // 🎯 OLIKA PERSONLIGHETER
 const personalities = {
