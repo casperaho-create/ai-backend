@@ -6,3 +6,8 @@
     "openai": "^4.0.0"
   }
 }
+{
+  "name": "ai-backend",
+  "version": "1.0.0",
+  "private": true
+}
