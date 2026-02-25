@@ -20,21 +20,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, company } = req.body;
+const { message, company } = req.body;
 
 // 🔥 LEAD DETECTION
-if (message.match(/\d{7,}/)) {
+let leadMessage = null;
+
+if (message && message.match(/\d{7,}/)) {
   console.log("📞 Lead detected:", message);
+  leadMessage = "Tack! Vi har noterat ditt telefonnummer och kontaktar dig snart.";
 }
 
-if (message.includes("@")) {
-  console.log("📧 Email detected:", message);
+if (message && message.includes("@")) {
+  console.log("📧 Lead detected:", message);
+  leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snart.";
 }
 
 if (!message) {
   return res.status(400).json({ error: "Message is required" });
 }
 
+// 🔥 STOPPA HÄR OM LEAD
+if (leadMessage) {
+  return res.status(200).json({
+    reply: leadMessage
+  });
+}
+
+// 🔥 ANNARS KÖR OPENAI
+const completion = await openai.chat.completions.create({
+  
     // 🎯 OLIKA PERSONLIGHETER
 const personalities = {
 
