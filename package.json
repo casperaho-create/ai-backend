@@ -1,13 +1,5 @@
 {
   "name": "ai-backend",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "openai": "^4.0.0"
-  }
-}
-{
-  "name": "ai-backend",
   "version": "1.0.0",
   "private": true
 }
