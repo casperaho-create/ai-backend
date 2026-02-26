@@ -34,137 +34,123 @@ export default async function handler(req, res) {
 
     const phoneMatch = message.match(/\d{7,}/);
     const emailMatch = message.match(/\S+@\S+\.\S+/);
-    
-// 📊 Spara lead i fil
-const newLead = {
-  company,
-  message,
-  date: new Date().toISOString()
-};
 
-let leads = [];
-
-try {
-  const fileData = fs.readFileSync("leads.json", "utf8");
-  leads = JSON.parse(fileData);
-} catch (err) {
-  leads = [];
-}
-
-leads.push(newLead);
-
-fs.writeFileSync("leads.json", JSON.stringify(leads, null, 2));
-    
     if (phoneMatch || emailMatch) {
-   await resend.emails.send({
-  from: "AI Lead <onboarding@resend.dev>",
-  to: "casper.aho@gmail.com",
-  subject: `🔥 Ny lead från ${company.toUpperCase()}`,
-  html: `
-  <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:30px;">
-    <div style="max-width:600px; margin:auto; background:white; padding:25px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-      
-      <h2 style="color:#111;">🚀 Ny AI‑lead mottagen</h2>
-      
-      <p style="color:#555;">Din AI‑assistent har precis fångat en ny potentiell kund.</p>
-      
-      <hr style="margin:20px 0;">
-      
-      <p><strong>Företag:</strong> ${company}</p>
-      <p><strong>Meddelande:</strong></p>
-      
-      <div style="background:#f9fafb; padding:15px; border-radius:6px; margin-top:10px;">
-        ${message}
-      </div>
-      
-      <hr style="margin:25px 0;">
-      
-      <p style="font-size:14px; color:#777;">
-        💡 Svara direkt på detta mail för att kontakta kunden.
-      </p>
-      
-      <p style="font-size:12px; color:#aaa;">
-        Skickat automatiskt från din AI‑säljare.
-      </p>
-      
-    </div>
-  </div>
-  `,
-});
+
+      // 📊 Spara lead i fil (kan vara temporärt på Vercel)
+      try {
+        const newLead = {
+          company: company || "Okänt företag",
+          message,
+          date: new Date().toISOString(),
+        };
+
+        let leads = [];
+
+        try {
+          const fileData = fs.readFileSync("leads.json", "utf8");
+          leads = JSON.parse(fileData);
+        } catch {
+          leads = [];
+        }
+
+        leads.push(newLead);
+
+        fs.writeFileSync("leads.json", JSON.stringify(leads, null, 2));
+      } catch (err) {
+        console.log("Kunde inte spara lead i fil:", err.message);
+      }
+
+      // 📧 Skicka mail
+      await resend.emails.send({
+        from: "AI Lead <onboarding@resend.dev>",
+        to: "casper.aho@gmail.com",
+        subject: `🔥 Ny lead från ${(company || "Okänt företag").toUpperCase()}`,
+        html: `
+        <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:30px;">
+          <div style="max-width:600px; margin:auto; background:white; padding:25px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+            
+            <h2 style="color:#111;">🚀 Ny AI‑lead mottagen</h2>
+            
+            <p style="color:#555;">Din AI‑assistent har precis fångat en ny potentiell kund.</p>
+            
+            <hr style="margin:20px 0;">
+            
+            <p><strong>Företag:</strong> ${company || "Okänt företag"}</p>
+            <p><strong>Meddelande:</strong></p>
+            
+            <div style="background:#f9fafb; padding:15px; border-radius:6px; margin-top:10px;">
+              ${message}
+            </div>
+            
+            <hr style="margin:25px 0;">
+            
+            <p style="font-size:14px; color:#777;">
+              💡 Svara direkt på detta mail för att kontakta kunden.
+            </p>
+            
+            <p style="font-size:12px; color:#aaa;">
+              Skickat automatiskt från din AI‑säljare.
+            </p>
+            
+          </div>
+        </div>
+        `,
+      });
 
       return res.status(200).json({
-        reply: "Perfekt! 🙌 Vi har tagit emot dina uppgifter och återkommer väldigt snart."
+        reply: "Perfekt! 🙌 Vi har tagit emot dina uppgifter och återkommer väldigt snart.",
       });
     }
 
     // =========================
-    // 🎭 AVANCERADE PERSONLIGHETER
+    // 🎭 PERSONLIGHETER
     // =========================
 
     const personalities = {
-
       bygg: `
 Du är en professionell och förtroendeingivande byggfirma.
-Du hjälper med renovering, altaner, badrum, kök och nybyggnation.
 Ställ frågor om projektets omfattning, budget och tidsram.
-Förklara trygghet, kvalitet och ROT-avdrag.
-Driv alltid konversationen mot offert eller kontakt.
-Avsluta ofta med: "Vill du att vi kontaktar dig för en kostnadsfri offert?"
+Nämn ROT-avdrag när relevant.
+Driv mot offert.
       `,
-
       tandlakare: `
-Du är en lugn, trygg och pedagogisk tandläkarklinik.
-Visa empati.
-Ställ frågor om symptom, hur länge det pågått och smärtnivå.
-Ge informativa råd men undvik diagnoser.
-Betona trygghet och modern utrustning.
-Erbjud alltid bokning av tid.
+Du är en lugn och trygg tandläkarklinik.
+Ställ frågor om symptom och smärta.
+Ge informativa men icke-diagnostiska råd.
+Erbjud alltid bokning.
       `,
-
       gym: `
-Du är en energisk men professionell personlig tränare.
-Fråga om mål: viktnedgång, muskler, styrka eller kondition.
-Ge konkreta, enkla tips.
-Motivera och peppa.
-Erbjud personligt träningsschema eller konsultation.
+Du är en energisk personlig tränare.
+Fråga om mål.
+Ge konkreta tips.
+Motivera.
       `,
-
       frisor: `
-Du är en trendmedveten och varm frisör.
-Fråga om hårtyp, ansiktsform och stil.
-Föreslå klippning, färg och styling.
-Nämn aktuella trender.
-Erbjud gratis konsultation eller bokning.
+Du är en trendmedveten frisör.
+Fråga om hårtyp och stil.
+Föreslå klippning och färg.
+Erbjud konsultation.
       `,
-
       mekaniker: `
-Du är en kunnig och ärlig bilverkstad.
+Du är en kunnig bilverkstad.
 Ställ felsökningsfrågor.
-Förklara möjliga orsaker enkelt.
 Ge ungefärlig prisbild.
-Betona trygghet och garanti.
 Erbjud tidsbokning.
       `,
-
       klader: `
 Du är en stilmedveten modebutik.
-Fråga om tillfälle: fest, vardag, jobb, dejt.
-Ge konkreta outfit-förslag.
-Föreslå kombinationer och accessoarer.
-Uppmuntra besök i butik eller beställning.
-      `
+Fråga om tillfälle.
+Föreslå outfits och kombinationer.
+      `,
     };
 
     const systemPrompt =
       personalities[company] ||
-      `
-Du är en professionell företags-AI.
-Svara hjälpsamt, säljande och tydligt.
-Ställ följdfrågor och driv mot kontakt eller bokning.
-      `;
+      `Du är en professionell företags-AI som svarar hjälpsamt och säljande.`;
 
     // =========================
-    // 🤖 OPENAI CALL
+    // 🤖 OPENAI
     // =========================
 
     const aiResponse = await openai.chat.completions.create({
