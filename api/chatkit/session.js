@@ -35,18 +35,41 @@ export default async function handler(req, res) {
     const emailMatch = message.match(/\S+@\S+\.\S+/);
 
     if (phoneMatch || emailMatch) {
-      await resend.emails.send({
-        from: "AI Lead <onboarding@resend.dev>",
-        to: "casper.aho@gmail.com",
-        subject: `🔥 Ny lead från ${company}`,
-        html: `
-          <h2>Ny lead från AI-chatten</h2>
-          <p><strong>Företag:</strong> ${company}</p>
-          <p><strong>Meddelande:</strong> ${message}</p>
-          <hr/>
-          <p>Skickat från din AI-säljare 🚀</p>
-        `,
-      });
+   await resend.emails.send({
+  from: "AI Lead <onboarding@resend.dev>",
+  to: "casper.aho@gmail.com",
+  subject: `🔥 Ny lead från ${company.toUpperCase()}`,
+  html: `
+  <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:30px;">
+    <div style="max-width:600px; margin:auto; background:white; padding:25px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+      
+      <h2 style="color:#111;">🚀 Ny AI‑lead mottagen</h2>
+      
+      <p style="color:#555;">Din AI‑assistent har precis fångat en ny potentiell kund.</p>
+      
+      <hr style="margin:20px 0;">
+      
+      <p><strong>Företag:</strong> ${company}</p>
+      <p><strong>Meddelande:</strong></p>
+      
+      <div style="background:#f9fafb; padding:15px; border-radius:6px; margin-top:10px;">
+        ${message}
+      </div>
+      
+      <hr style="margin:25px 0;">
+      
+      <p style="font-size:14px; color:#777;">
+        💡 Svara direkt på detta mail för att kontakta kunden.
+      </p>
+      
+      <p style="font-size:12px; color:#aaa;">
+        Skickat automatiskt från din AI‑säljare.
+      </p>
+      
+    </div>
+  </div>
+  `,
+});
 
       return res.status(200).json({
         reply: "Perfekt! 🙌 Vi har tagit emot dina uppgifter och återkommer väldigt snart."
