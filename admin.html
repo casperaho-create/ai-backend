@@ -12,7 +12,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 50px auto;
       padding: 20px;
     }
@@ -58,63 +58,114 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 15px;
+      font-size: 14px;
     }
 
     th, td {
       padding: 12px;
       text-align: left;
       border-bottom: 1px solid #334155;
+      vertical-align: top;
     }
 
     th {
       color: #94a3b8;
     }
 
+    .message-cell {
+      max-width: 400px;
+      word-wrap: break-word;
+      color: #cbd5e1;
+    }
+
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🚀 AI Lead Dashboard</h1>
 
-    <div class="cards">
-      <div class="card">
-        <h2>Total Leads</h2>
-        <p id="total">0</p>
-      </div>
-    </div>
+<div class="container">
+  <h1>🚀 AI Lead Dashboard</h1>
 
-    <div class="leads">
-      <h2>Leads per bransch</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Bransch</th>
-            <th>Antal</th>
-          </tr>
-        </thead>
-        <tbody id="companyStats"></tbody>
-      </table>
+  <div class="cards">
+    <div class="card">
+      <h2>Total Leads</h2>
+      <p id="total">0</p>
     </div>
   </div>
+
+  <div class="leads">
+    <h2>Leads per bransch</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Bransch</th>
+          <th>Antal</th>
+        </tr>
+      </thead>
+      <tbody id="companyStats"></tbody>
+    </table>
+  </div>
+
+  <div class="leads">
+    <h2>Senaste Leads</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Bransch</th>
+          <th>Email</th>
+          <th>Telefon</th>
+          <th>Meddelande</th>
+        </tr>
+      </thead>
+      <tbody id="latestLeads"></tbody>
+    </table>
+  </div>
+
+</div>
 
 <script>
 async function loadStats() {
   const res = await fetch("/api/chatkit/session");
   const data = await res.json();
 
+  // Total
   document.getElementById("total").innerText = data.stats.total;
 
-  const table = document.getElementById("companyStats");
-  table.innerHTML = "";
+  // Per bransch
+  const companyTable = document.getElementById("companyStats");
+  companyTable.innerHTML = "";
 
   for (const company in data.stats.byCompany) {
-    const row = `
+    companyTable.innerHTML += `
       <tr>
         <td>${company}</td>
         <td>${data.stats.byCompany[company]}</td>
       </tr>
     `;
-    table.innerHTML += row;
+  }
+
+  // Senaste leads
+  const leadsTable = document.getElementById("latestLeads");
+  leadsTable.innerHTML = "";
+
+  if (data.leads && data.leads.length > 0) {
+    data.leads.forEach(lead => {
+      leadsTable.innerHTML += `
+        <tr>
+          <td>${new Date(lead.created_at).toLocaleString()}</td>
+          <td>${lead.company || "-"}</td>
+          <td>${lead.email || "-"}</td>
+          <td>${lead.phone || "-"}</td>
+          <td class="message-cell">${lead.message}</td>
+        </tr>
+      `;
+    });
+  } else {
+    leadsTable.innerHTML = `
+      <tr>
+        <td colspan="5">Inga leads ännu</td>
+      </tr>
+    `;
   }
 }
 
