@@ -1,11 +1,13 @@
 import OpenAI from "openai";
+import { Resend } from "resend";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export default async function handler(req, res) {
+const resend = new Resend(process.env.RESEND_API_KEY);
 
+export default async function handler(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -20,103 +22,110 @@ export default async function handler(req, res) {
   }
 
   try {
-
     const { message, company } = req.body;
-
-    // 🔥 LEAD DETECTION
- let leadMessage = null;
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phoneRegex = /\d{7,}/;
-
-if (phoneRegex.test(message)) {
-  console.log("📞 Phone lead:", message);
-  leadMessage = "Tack! Vi har noterat ditt telefonnummer och återkommer snarast.";
-}
-
-if (emailRegex.test(message)) {
-  console.log("📧 Email lead:", message);
-  leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snarast.";
-}
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // 🔥 STOPPA HÄR OM LEAD
-    if (leadMessage) {
+    // =============================
+    // 🔥 LEAD DETECTION
+    // =============================
+
+    let leadDetected = false;
+
+    const phoneMatch = message.match(/\d{7,}/);
+    const emailMatch = message.match(/\S+@\S+\.\S+/);
+
+    if (phoneMatch || emailMatch) {
+      leadDetected = true;
+
+      // 📧 SKICKA MAIL VIA RESEND
+      await resend.emails.send({
+        from: "AI Lead <onboarding@resend.dev>", // Byt till din verifierade domän senare
+        to: "DINMAIL@DIN-DOMÄN.SE", // 🔥 BYT TILL DIN RIKTIGA MAIL
+        subject: `Ny lead från ${company}`,
+        html: `
+          <h2>Ny lead från AI-chatten</h2>
+          <p><strong>Företag:</strong> ${company}</p>
+          <p><strong>Meddelande:</strong> ${message}</p>
+        `,
+      });
+
       return res.status(200).json({
-        reply: leadMessage
+        reply: "Tack! Vi har noterat dina kontaktuppgifter och återkommer så snart som möjligt."
       });
     }
 
-    // 🎯 OLIKA PERSONLIGHETER
-   const personalities = {
+    // =============================
+    // 🎭 PERSONLIGHETER
+    // =============================
 
-  bygg: `
+    const personalities = {
+      bygg: `
 Du är en professionell byggfirma AI.
-Du hjälper kunder med renovering, altanbygge, tak, kök och badrum.
-Ställ frågor om projektets storlek, budget och tidsram.
+Du hjälper kunder med renovering och nybyggnation.
+Ställ frågor om projekt, budget och tidsram.
 Nämn ROT-avdrag när relevant.
-Om kunden visar intresse: be om telefonnummer eller e-post för offert.
-  `,
-
-  tandlakare: `
+Avsluta ofta med: "Vill du att vi kontaktar dig för en offert?"
+      `,
+      tandlakare: `
 Du är en trygg och professionell tandläkarklinik AI.
 Svara lugnt och pedagogiskt.
 Ställ frågor om symptom.
-Erbjud alltid tidsbokning om kunden nämner problem.
-  `,
-
-  gym: `
-Du är en motiverande personlig tränare.
-Fråga om mål (gå ner i vikt, bygga muskler, kondition).
-Erbjud personligt träningsschema.
-Om kunden är seriös – be om kontaktuppgifter.
-  `,
-
-  frisor: `
-Du är en modern frisörsalong.
-Ge stilråd och trendtips.
-Fråga om hårlängd och önskat resultat.
-Erbjud bokning av konsultation.
-  `,
-
-  mekaniker: `
-Du är en professionell bilverkstad.
+Ge informativa men inte medicinskt definitiva svar.
+Erbjud alltid möjlighet att boka tid.
+      `,
+      gym: `
+Du är en energisk personlig tränare.
+Ge tränings- och kostråd.
+Fråga om mål (viktnedgång, muskler, kondition).
+Erbjud personligt schema.
+      `,
+      frisor: `
+Du är en modern frisörsalong AI.
+Ge stilråd baserat på hårtyp och ansiktsform.
+Föreslå färg, klippning och styling.
+Erbjud bokning.
+      `,
+      mekaniker: `
+Du är en professionell bilverkstad AI.
 Ställ felsökningsfrågor.
-Ge ungefärlig prisindikation.
-Om bilen behöver service – erbjud bokning.
-  `,
-
-  klader: `
+Förklara problem enkelt.
+Ge ungefärlig kostnadsbild.
+Erbjud tidsbokning.
+      `,
+      klader: `
 Du är en modebutik AI.
-Ge outfit-förslag.
+Ge stilråd och outfitförslag.
 Fråga om tillfälle.
-Uppmuntra kunden att besöka butik eller lämna kontakt för stylinghjälp.
-  `
-};
+Uppmuntra besök i butik.
+      `
+    };
 
     const systemPrompt =
       personalities[company] ||
-      `Du är en professionell företags-AI som svarar hjälpsamt.`;
+      `Du är en professionell företags-AI som svarar hjälpsamt och tydligt.`;
 
-    // 🔥 OPENAI ANROP
-   const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [
-    { role: "system", content: systemPrompt },
-    ...(req.body.history || [])
-  ],
-  temperature: 0.7,
-});
+    // =============================
+    // 🤖 OPENAI SVAR
+    // =============================
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ],
+      temperature: 0.7,
+    });
 
     return res.status(200).json({
       reply: completion.choices[0].message.content
     });
 
   } catch (error) {
-    console.error("OpenAI Error:", error);
+    console.error("ERROR:", error);
     return res.status(500).json({
       error: "Something went wrong"
     });
