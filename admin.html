@@ -1,114 +1,147 @@
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      margin: 0;
+      padding: 40px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-number {
+      font-size: 32px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .lead {
+      background: #334155;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .error {
+      color: #f87171;
+    }
+
+    .loading {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚀 AI Lead Dashboard</h1>
+
+  <div class="card">
+    <h2>Total Leads</h2>
+    <div id="totalLeads" class="stat-number">0</div>
+  </div>
+
+  <div class="card">
+    <h2>Leads per företag</h2>
+    <div id="companyStats">Inga data</div>
+  </div>
+
+  <div class="card">
+    <h2>Senaste Leads</h2>
+    <div id="leadsList">Laddar...</div>
+  </div>
+
 <script>
-let chart;
-
-async function loadStats() {
+async function loadDashboard() {
   try {
+    document.body.classList.add("loading");
+
     const res = await fetch("/api/chatkit/session");
+    if (!res.ok) {
+      throw new Error("API error: " + res.status);
+    }
+
     const data = await res.json();
+    console.log("Dashboard data:", data);
 
-    // =========================
-    // TOTAL
-    // =========================
-    document.getElementById("total").innerText = data.stats.total || 0;
+    // ===== TOTAL =====
+    const totalEl = document.getElementById("totalLeads");
+    if (totalEl && data.stats) {
+      totalEl.innerText = data.stats.total || 0;
+    }
 
-    // =========================
-    // LEADS PER BRANSCH
-    // =========================
-    const companyTable = document.getElementById("companyStats");
-    companyTable.innerHTML = "";
+    // ===== COMPANY STATS =====
+    const companyEl = document.getElementById("companyStats");
+    if (companyEl && data.stats) {
+      companyEl.innerHTML = "";
 
-    if (data.stats.byCompany) {
-      for (const company in data.stats.byCompany) {
-        companyTable.innerHTML += `
-          <tr>
-            <td>${company}</td>
-            <td>${data.stats.byCompany[company]}</td>
-          </tr>
-        `;
+      const companies = data.stats.byCompany || {};
+      const keys = Object.keys(companies);
+
+      if (keys.length === 0) {
+        companyEl.innerText = "Inga leads ännu";
+      } else {
+        keys.forEach(key => {
+          const div = document.createElement("div");
+          div.innerText = key + ": " + companies[key];
+          companyEl.appendChild(div);
+        });
       }
     }
 
-    // =========================
-    // GRAF – LEADS ÖVER TID
-    // =========================
-    const groupedByDate = {};
+    // ===== LEADS LIST =====
+    const leadsEl = document.getElementById("leadsList");
+    if (leadsEl) {
+      leadsEl.innerHTML = "";
 
-    if (data.leads && data.leads.length > 0) {
-      data.leads.forEach(lead => {
-        const date = new Date(lead.created_at).toLocaleDateString();
-        if (!groupedByDate[date]) groupedByDate[date] = 0;
-        groupedByDate[date]++;
-      });
-    }
-
-    const labels = Object.keys(groupedByDate);
-    const values = Object.values(groupedByDate);
-
-    const ctx = document.getElementById("leadsChart").getContext("2d");
-
-    if (chart) chart.destroy();
-
-    chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [{
-          label: "Leads",
-          data: values,
-          borderColor: "#3b82f6",
-          backgroundColor: "rgba(59,130,246,0.2)",
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          x: {
-            ticks: { color: "#94a3b8" },
-            grid: { color: "#334155" }
-          },
-          y: {
-            ticks: { color: "#94a3b8" },
-            grid: { color: "#334155" }
-          }
-        }
+      if (!data.leads || data.leads.length === 0) {
+        leadsEl.innerText = "Inga leads ännu";
+      } else {
+        data.leads.forEach(lead => {
+          const div = document.createElement("div");
+          div.className = "lead";
+          div.innerHTML = `
+            <strong>Företag:</strong> ${lead.company || "okänt"}<br>
+            <strong>Email:</strong> ${lead.email || "-"}<br>
+            <strong>Telefon:</strong> ${lead.phone || "-"}<br>
+            <strong>Meddelande:</strong><br>
+            ${lead.message}
+          `;
+          leadsEl.appendChild(div);
+        });
       }
-    });
-
-    // =========================
-    // SENASTE LEADS
-    // =========================
-    const leadsTable = document.getElementById("latestLeads");
-    leadsTable.innerHTML = "";
-
-    if (data.leads && data.leads.length > 0) {
-      data.leads.forEach(lead => {
-        leadsTable.innerHTML += `
-          <tr>
-            <td>${new Date(lead.created_at).toLocaleString()}</td>
-            <td>${lead.company || "-"}</td>
-            <td>${lead.email || "-"}</td>
-            <td>${lead.phone || "-"}</td>
-            <td class="message-cell">${lead.message}</td>
-          </tr>
-        `;
-      });
-    } else {
-      leadsTable.innerHTML = `
-        <tr>
-          <td colspan="5">Inga leads ännu</td>
-        </tr>
-      `;
     }
 
   } catch (error) {
     console.error("Dashboard error:", error);
+
+    document.body.innerHTML = `
+      <h1 class="error">Dashboard Error</h1>
+      <p class="error">${error.message}</p>
+    `;
+  } finally {
+    document.body.classList.remove("loading");
   }
 }
 
-loadStats();
+// Ladda när sidan är redo
+window.addEventListener("DOMContentLoaded", loadDashboard);
 </script>
+
+</body>
+</html>
