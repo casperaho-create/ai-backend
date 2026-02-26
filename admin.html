@@ -1,146 +1,167 @@
-<!DOCTYPE html>
-<html lang="sv">
-<head>
-  <meta charset="UTF-8" />
-  <title>AI Admin Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-      margin: 0;
-      padding: 40px;
-    }
-
-    h1 {
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: #1e293b;
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
-
-    .stat-number {
-      font-size: 32px;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-
-    .lead {
-      background: #334155;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-    }
-
-    .error {
-      color: #f87171;
-    }
-
-    .loading {
-      opacity: 0.6;
-    }
-  </style>
-</head>
-<body>
-
-  <h1>🚀 AI Lead Dashboard</h1>
-
-  <div class="card">
-    <h2>Total Leads</h2>
-    <div id="totalLeads" class="stat-number">0</div>
-  </div>
-
-  <div class="card">
-    <h2>Leads per företag</h2>
-    <div id="companyStats">Inga data</div>
-  </div>
-
-  <div class="card">
-    <h2>Senaste Leads</h2>
-    <div id="leadsList">Laddar...</div>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-async function loadDashboard() {
+/* =========================
+   🔐 LÖSENORDSSKYDD
+========================= */
+
+const ADMIN_PASSWORD = "1234"; // <-- BYT DENNA!
+
+function checkPassword() {
+  const saved = sessionStorage.getItem("admin_auth");
+
+  if (saved === ADMIN_PASSWORD) {
+    loadStats();
+    startAutoRefresh();
+    return;
+  }
+
+  const input = prompt("Ange lösenord för adminpanelen:");
+
+  if (input === ADMIN_PASSWORD) {
+    sessionStorage.setItem("admin_auth", input);
+    loadStats();
+    startAutoRefresh();
+  } else {
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:white;font-family:Arial">
+        <h1>❌ Fel lösenord</h1>
+      </div>
+    `;
+  }
+}
+
+/* =========================
+   📊 DASHBOARD LOGIK
+========================= */
+
+let chart;
+let refreshInterval;
+
+async function loadStats() {
   try {
-    document.body.classList.add("loading");
-
     const res = await fetch("/api/chatkit/session");
-    if (!res.ok) {
-      throw new Error("API error: " + res.status);
-    }
-
     const data = await res.json();
-    console.log("Dashboard data:", data);
 
-    // ===== TOTAL =====
-    const totalEl = document.getElementById("totalLeads");
-    if (totalEl && data.stats) {
-      totalEl.innerText = data.stats.total || 0;
-    }
+    if (!data || !data.stats) return;
 
-    // ===== COMPANY STATS =====
-    const companyEl = document.getElementById("companyStats");
-    if (companyEl && data.stats) {
-      companyEl.innerHTML = "";
+    /* TOTAL */
+    const totalEl = document.getElementById("total");
+    if (totalEl) totalEl.innerText = data.stats.total || 0;
 
-      const companies = data.stats.byCompany || {};
-      const keys = Object.keys(companies);
-
-      if (keys.length === 0) {
-        companyEl.innerText = "Inga leads ännu";
-      } else {
-        keys.forEach(key => {
-          const div = document.createElement("div");
-          div.innerText = key + ": " + companies[key];
-          companyEl.appendChild(div);
-        });
+    /* LEADS PER FÖRETAG */
+    const companyTable = document.getElementById("companyStats");
+    if (companyTable) {
+      companyTable.innerHTML = "";
+      if (data.stats.byCompany) {
+        for (const company in data.stats.byCompany) {
+          companyTable.innerHTML += `
+            <tr>
+              <td>${company}</td>
+              <td>${data.stats.byCompany[company]}</td>
+            </tr>
+          `;
+        }
       }
     }
 
-    // ===== LEADS LIST =====
-    const leadsEl = document.getElementById("leadsList");
-    if (leadsEl) {
-      leadsEl.innerHTML = "";
+    /* GRAF – LEADS ÖVER TID */
+    const groupedByDate = {};
 
-      if (!data.leads || data.leads.length === 0) {
-        leadsEl.innerText = "Inga leads ännu";
-      } else {
+    if (data.leads && data.leads.length > 0) {
+      data.leads.forEach(lead => {
+        const date = new Date(lead.created_at).toLocaleDateString();
+        if (!groupedByDate[date]) groupedByDate[date] = 0;
+        groupedByDate[date]++;
+      });
+    }
+
+    const labels = Object.keys(groupedByDate);
+    const values = Object.values(groupedByDate);
+
+    const canvas = document.getElementById("leadsChart");
+
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Leads",
+            data: values,
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59,130,246,0.2)",
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#94a3b8" },
+              grid: { color: "#334155" }
+            },
+            y: {
+              ticks: { color: "#94a3b8" },
+              grid: { color: "#334155" }
+            }
+          }
+        }
+      });
+    }
+
+    /* SENASTE LEADS */
+    const leadsTable = document.getElementById("latestLeads");
+
+    if (leadsTable) {
+      leadsTable.innerHTML = "";
+
+      if (data.leads && data.leads.length > 0) {
         data.leads.forEach(lead => {
-          const div = document.createElement("div");
-          div.className = "lead";
-          div.innerHTML = `
-  <div style="margin-bottom:8px;"><strong>Företag:</strong> ${lead.company || "okänt"}</div>
-  <div style="margin-bottom:8px;"><strong>Email:</strong> ${lead.email || "-"}</div>
-  <div style="margin-bottom:8px;"><strong>Telefon:</strong> ${lead.phone || "-"}</div>
-  <div><strong>Meddelande:</strong><br>${lead.message}</div>
-`;
-          leadsEl.appendChild(div);
+          leadsTable.innerHTML += `
+            <tr>
+              <td>${new Date(lead.created_at).toLocaleString()}</td>
+              <td>${lead.company || "-"}</td>
+              <td>${lead.email || "-"}</td>
+              <td>${lead.phone || "-"}</td>
+              <td>${lead.message || "-"}</td>
+            </tr>
+          `;
         });
+      } else {
+        leadsTable.innerHTML = `
+          <tr>
+            <td colspan="5">Inga leads ännu</td>
+          </tr>
+        `;
       }
     }
 
   } catch (error) {
     console.error("Dashboard error:", error);
-
-    document.body.innerHTML = `
-      <h1 class="error">Dashboard Error</h1>
-      <p class="error">${error.message}</p>
-    `;
-  } finally {
-    document.body.classList.remove("loading");
   }
 }
 
-// Ladda när sidan är redo
-window.addEventListener("DOMContentLoaded", loadDashboard);
-</script>
+/* =========================
+   🔄 AUTO REFRESH
+========================= */
 
-</body>
-</html>
+function startAutoRefresh() {
+  refreshInterval = setInterval(() => {
+    loadStats();
+  }, 30000); // 30 sekunder
+}
+
+/* =========================
+   🚀 STARTA
+========================= */
+
+checkPassword();
+</script>
