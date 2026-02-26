@@ -116,12 +116,11 @@ async function loadDashboard() {
           const div = document.createElement("div");
           div.className = "lead";
           div.innerHTML = `
-            <strong>Företag:</strong> ${lead.company || "okänt"}<br>
-            <strong>Email:</strong> ${lead.email || "-"}<br>
-            <strong>Telefon:</strong> ${lead.phone || "-"}<br>
-            <strong>Meddelande:</strong><br>
-            ${lead.message}
-          `;
+  <div style="margin-bottom:8px;"><strong>Företag:</strong> ${lead.company || "okänt"}</div>
+  <div style="margin-bottom:8px;"><strong>Email:</strong> ${lead.email || "-"}</div>
+  <div style="margin-bottom:8px;"><strong>Telefon:</strong> ${lead.phone || "-"}</div>
+  <div><strong>Meddelande:</strong><br>${lead.message}</div>
+`;
           leadsEl.appendChild(div);
         });
       }
