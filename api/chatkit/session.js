@@ -24,17 +24,20 @@ export default async function handler(req, res) {
     const { message, company } = req.body;
 
     // 🔥 LEAD DETECTION
-    let leadMessage = null;
+ let leadMessage = null;
 
-    if (message && message.match(/\d{7,}/)) {
-      console.log("📞 Lead detected:", message);
-      leadMessage = "Tack! Vi har noterat ditt telefonnummer och kontaktar dig snart.";
-    }
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /\d{7,}/;
 
-    if (message && message.includes("@")) {
-      console.log("📧 Lead detected:", message);
-      leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snart.";
-    }
+if (phoneRegex.test(message)) {
+  console.log("📞 Phone lead:", message);
+  leadMessage = "Tack! Vi har noterat ditt telefonnummer och återkommer snarast.";
+}
+
+if (emailRegex.test(message)) {
+  console.log("📧 Email lead:", message);
+  leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snarast.";
+}
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
