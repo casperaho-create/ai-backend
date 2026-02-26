@@ -43,7 +43,7 @@ export default async function handler(req, res) {
       // 📧 SKICKA MAIL VIA RESEND
       await resend.emails.send({
         from: "AI Lead <onboarding@resend.dev>", // Byt till din verifierade domän senare
-        to: "DINMAIL@DIN-DOMÄN.SE", // 🔥 BYT TILL DIN RIKTIGA MAIL
+        to: "casper.aho@gmail.com
         subject: `Ny lead från ${company}`,
         html: `
           <h2>Ny lead från AI-chatten</h2>
