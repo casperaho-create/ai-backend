@@ -1,167 +1,158 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-/* =========================
-   🔐 LÖSENORDSSKYDD
-========================= */
+document.addEventListener("DOMContentLoaded", function () {
 
-const ADMIN_PASSWORD = "Volvob234!"; // <-- BYT DENNA!
+  /* =========================
+     🔐 LÖSENORD
+  ========================= */
 
-function checkPassword() {
-  const saved = sessionStorage.getItem("admin_auth");
+  const ADMIN_PASSWORD = "Volvob234!"; // byt
 
-  if (saved === ADMIN_PASSWORD) {
-    loadStats();
-    startAutoRefresh();
-    return;
-  }
+  function protectPage() {
+    try {
+      const saved = sessionStorage.getItem("admin_auth");
 
-  const input = prompt("Ange lösenord för adminpanelen:");
+      if (saved === ADMIN_PASSWORD) return true;
 
-  if (input === ADMIN_PASSWORD) {
-    sessionStorage.setItem("admin_auth", input);
-    loadStats();
-    startAutoRefresh();
-  } else {
-    document.body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:white;font-family:Arial">
-        <h1>❌ Fel lösenord</h1>
-      </div>
-    `;
-  }
-}
+      const input = prompt("Ange lösenord:");
 
-/* =========================
-   📊 DASHBOARD LOGIK
-========================= */
-
-let chart;
-let refreshInterval;
-
-async function loadStats() {
-  try {
-    const res = await fetch("/api/chatkit/session");
-    const data = await res.json();
-
-    if (!data || !data.stats) return;
-
-    /* TOTAL */
-    const totalEl = document.getElementById("total");
-    if (totalEl) totalEl.innerText = data.stats.total || 0;
-
-    /* LEADS PER FÖRETAG */
-    const companyTable = document.getElementById("companyStats");
-    if (companyTable) {
-      companyTable.innerHTML = "";
-      if (data.stats.byCompany) {
-        for (const company in data.stats.byCompany) {
-          companyTable.innerHTML += `
-            <tr>
-              <td>${company}</td>
-              <td>${data.stats.byCompany[company]}</td>
-            </tr>
-          `;
-        }
+      if (input === ADMIN_PASSWORD) {
+        sessionStorage.setItem("admin_auth", input);
+        return true;
       }
+
+      document.body.innerHTML =
+        "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:white;font-family:Arial'><h1>❌ Fel lösenord</h1></div>";
+      return false;
+
+    } catch (err) {
+      console.error("Password error:", err);
+      return false;
     }
+  }
 
-    /* GRAF – LEADS ÖVER TID */
-    const groupedByDate = {};
+  if (!protectPage()) return;
 
-    if (data.leads && data.leads.length > 0) {
-      data.leads.forEach(lead => {
+  /* =========================
+     📊 DASHBOARD
+  ========================= */
+
+  let chart = null;
+
+  async function loadStats() {
+    try {
+      const res = await fetch("/api/chatkit/session");
+
+      if (!res.ok) {
+        console.error("API error:", res.status);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data || !data.stats) {
+        console.error("Invalid data:", data);
+        return;
+      }
+
+      /* TOTAL */
+      const totalEl = document.getElementById("total");
+      if (totalEl) totalEl.textContent = data.stats.total || 0;
+
+      /* LEADS PER FÖRETAG */
+      const companyTable = document.getElementById("companyStats");
+      if (companyTable) {
+        companyTable.innerHTML = "";
+
+        const companies = data.stats.byCompany || {};
+
+        Object.keys(companies).forEach(company => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+            <td>${company}</td>
+            <td>${companies[company]}</td>
+          `;
+
+          companyTable.appendChild(row);
+        });
+      }
+
+      /* GRAF */
+      const grouped = {};
+
+      (data.leads || []).forEach(lead => {
+        if (!lead.created_at) return;
         const date = new Date(lead.created_at).toLocaleDateString();
-        if (!groupedByDate[date]) groupedByDate[date] = 0;
-        groupedByDate[date]++;
+        grouped[date] = (grouped[date] || 0) + 1;
       });
-    }
 
-    const labels = Object.keys(groupedByDate);
-    const values = Object.values(groupedByDate);
+      const canvas = document.getElementById("leadsChart");
 
-    const canvas = document.getElementById("leadsChart");
+      if (canvas && typeof Chart !== "undefined") {
 
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d");
 
-      if (chart) chart.destroy();
+        if (chart) chart.destroy();
 
-      chart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: labels,
-          datasets: [{
-            label: "Leads",
-            data: values,
-            borderColor: "#3b82f6",
-            backgroundColor: "rgba(59,130,246,0.2)",
-            tension: 0.3,
-            fill: true
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { display: false }
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Object.keys(grouped),
+            datasets: [{
+              data: Object.values(grouped),
+              borderColor: "#3b82f6",
+              backgroundColor: "rgba(59,130,246,0.2)",
+              tension: 0.3,
+              fill: true
+            }]
           },
-          scales: {
-            x: {
-              ticks: { color: "#94a3b8" },
-              grid: { color: "#334155" }
-            },
-            y: {
-              ticks: { color: "#94a3b8" },
-              grid: { color: "#334155" }
-            }
+          options: {
+            plugins: { legend: { display: false } }
           }
-        }
-      });
-    }
+        });
+      }
 
-    /* SENASTE LEADS */
-    const leadsTable = document.getElementById("latestLeads");
+      /* SENASTE LEADS */
+      const leadsTable = document.getElementById("latestLeads");
 
-    if (leadsTable) {
-      leadsTable.innerHTML = "";
+      if (leadsTable) {
+        leadsTable.innerHTML = "";
 
-      if (data.leads && data.leads.length > 0) {
-        data.leads.forEach(lead => {
-          leadsTable.innerHTML += `
-            <tr>
-              <td>${new Date(lead.created_at).toLocaleString()}</td>
+        if (data.leads && data.leads.length > 0) {
+
+          data.leads.forEach(lead => {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+              <td>${lead.created_at ? new Date(lead.created_at).toLocaleString() : "-"}</td>
               <td>${lead.company || "-"}</td>
               <td>${lead.email || "-"}</td>
               <td>${lead.phone || "-"}</td>
               <td>${lead.message || "-"}</td>
-            </tr>
-          `;
-        });
-      } else {
-        leadsTable.innerHTML = `
-          <tr>
-            <td colspan="5">Inga leads ännu</td>
-          </tr>
-        `;
+            `;
+
+            leadsTable.appendChild(row);
+          });
+
+        } else {
+          leadsTable.innerHTML =
+            "<tr><td colspan='5'>Inga leads ännu</td></tr>";
+        }
       }
+
+    } catch (error) {
+      console.error("Dashboard crash:", error);
     }
-
-  } catch (error) {
-    console.error("Dashboard error:", error);
   }
-}
 
-/* =========================
-   🔄 AUTO REFRESH
-========================= */
+  /* =========================
+     🔄 AUTO REFRESH
+  ========================= */
 
-function startAutoRefresh() {
-  refreshInterval = setInterval(() => {
-    loadStats();
-  }, 30000); // 30 sekunder
-}
+  loadStats();
+  setInterval(loadStats, 30000);
 
-/* =========================
-   🚀 STARTA
-========================= */
-
-checkPassword();
+});
 </script>
