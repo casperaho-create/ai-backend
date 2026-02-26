@@ -34,7 +34,27 @@ export default async function handler(req, res) {
 
     const phoneMatch = message.match(/\d{7,}/);
     const emailMatch = message.match(/\S+@\S+\.\S+/);
+    
+// 📊 Spara lead i fil
+const newLead = {
+  company,
+  message,
+  date: new Date().toISOString()
+};
 
+let leads = [];
+
+try {
+  const fileData = fs.readFileSync("leads.json", "utf8");
+  leads = JSON.parse(fileData);
+} catch (err) {
+  leads = [];
+}
+
+leads.push(newLead);
+
+fs.writeFileSync("leads.json", JSON.stringify(leads, null, 2));
+    
     if (phoneMatch || emailMatch) {
    await resend.emails.send({
   from: "AI Lead <onboarding@resend.dev>",
