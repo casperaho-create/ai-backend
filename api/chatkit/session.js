@@ -62,41 +62,46 @@ export default async function handler(req, res) {
       }
 
       // 📧 Skicka mail
-      await resend.emails.send({
-        from: "AI Lead <onboarding@resend.dev>",
-        to: "casper.aho@gmail.com",
-        subject: `🔥 Ny lead från ${(company || "Okänt företag").toUpperCase()}`,
-        html: `
-        <div style="font-family: Arial, sans-serif; background:#f4f6f8; padding:30px;">
-          <div style="max-width:600px; margin:auto; background:white; padding:25px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-            
-            <h2 style="color:#111;">🚀 Ny AI‑lead mottagen</h2>
-            
-            <p style="color:#555;">Din AI‑assistent har precis fångat en ny potentiell kund.</p>
-            
-            <hr style="margin:20px 0;">
-            
-            <p><strong>Företag:</strong> ${company || "Okänt företag"}</p>
-            <p><strong>Meddelande:</strong></p>
-            
-            <div style="background:#f9fafb; padding:15px; border-radius:6px; margin-top:10px;">
-              ${message}
-            </div>
-            
-            <hr style="margin:25px 0;">
-            
-            <p style="font-size:14px; color:#777;">
-              💡 Svara direkt på detta mail för att kontakta kunden.
-            </p>
-            
-            <p style="font-size:12px; color:#aaa;">
-              Skickat automatiskt från din AI‑säljare.
-            </p>
-            
-          </div>
-        </div>
-        `,
-      });
+     const leadId = Math.floor(Math.random() * 1000000);
+
+await resend.emails.send({
+  from: "AI Lead <onboarding@resend.dev>",
+  to: "casper.aho@gmail.com",
+  reply_to: emailMatch ? emailMatch[0] : undefined,
+  subject: `🔥 Ny lead #${leadId} från ${(company || "Okänt företag").toUpperCase()}`,
+  html: `
+  <div style="font-family: Arial, sans-serif; background:#0f172a; padding:40px;">
+    <div style="max-width:650px; margin:auto; background:white; padding:30px; border-radius:12px;">
+      
+      <h1 style="color:#111; margin-bottom:10px;">🚀 Ny AI‑Lead</h1>
+      <p style="color:#666;">Lead ID: <strong>#${leadId}</strong></p>
+      <p style="color:#666;">Tid: ${new Date().toLocaleString()}</p>
+
+      <hr style="margin:25px 0;">
+
+      <p><strong>Bransch:</strong> ${company || "Okänt företag"}</p>
+
+      <p style="margin-top:20px;"><strong>Kundens meddelande:</strong></p>
+
+      <div style="background:#f1f5f9; padding:15px; border-radius:8px;">
+        ${message}
+      </div>
+
+      <hr style="margin:25px 0;">
+
+      <a href="mailto:${emailMatch ? emailMatch[0] : ""}" 
+         style="display:inline-block; background:#2563eb; color:white; padding:12px 20px; border-radius:8px; text-decoration:none; margin-top:10px;">
+         Svara direkt till kunden
+      </a>
+
+      <p style="margin-top:30px; font-size:12px; color:#999;">
+        Skickat automatiskt från din AI‑säljare.
+      </p>
+
+    </div>
+  </div>
+  `,
+});
 
       return res.status(200).json({
         reply: "Perfekt! 🙌 Vi har tagit emot dina uppgifter och återkommer väldigt snart.",
