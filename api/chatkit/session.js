@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { Resend } from "resend";
+import fs from "fs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
