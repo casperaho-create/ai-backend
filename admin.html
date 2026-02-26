@@ -1,176 +1,114 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>AI Lead Dashboard</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 50px auto;
-      padding: 20px;
-    }
-
-    h1 {
-      font-size: 28px;
-      margin-bottom: 30px;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-    }
-
-    .card {
-      background: #1e293b;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    }
-
-    .card h2 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
-      color: #94a3b8;
-    }
-
-    .card p {
-      font-size: 28px;
-      margin: 0;
-      font-weight: bold;
-    }
-
-    .leads {
-      margin-top: 40px;
-      background: #1e293b;
-      padding: 25px;
-      border-radius: 12px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      font-size: 14px;
-    }
-
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #334155;
-      vertical-align: top;
-    }
-
-    th {
-      color: #94a3b8;
-    }
-
-    .message-cell {
-      max-width: 400px;
-      word-wrap: break-word;
-      color: #cbd5e1;
-    }
-
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <h1>🚀 AI Lead Dashboard</h1>
-
-  <div class="cards">
-    <div class="card">
-      <h2>Total Leads</h2>
-      <p id="total">0</p>
-    </div>
-  </div>
-
-  <div class="leads">
-    <h2>Leads per bransch</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Bransch</th>
-          <th>Antal</th>
-        </tr>
-      </thead>
-      <tbody id="companyStats"></tbody>
-    </table>
-  </div>
-
-  <div class="leads">
-    <h2>Senaste Leads</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Bransch</th>
-          <th>Email</th>
-          <th>Telefon</th>
-          <th>Meddelande</th>
-        </tr>
-      </thead>
-      <tbody id="latestLeads"></tbody>
-    </table>
-  </div>
-
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+let chart;
+
 async function loadStats() {
-  const res = await fetch("/api/chatkit/session");
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/chatkit/session");
+    const data = await res.json();
 
-  // Total
-  document.getElementById("total").innerText = data.stats.total;
+    // =========================
+    // TOTAL
+    // =========================
+    document.getElementById("total").innerText = data.stats.total || 0;
 
-  // Per bransch
-  const companyTable = document.getElementById("companyStats");
-  companyTable.innerHTML = "";
+    // =========================
+    // LEADS PER BRANSCH
+    // =========================
+    const companyTable = document.getElementById("companyStats");
+    companyTable.innerHTML = "";
 
-  for (const company in data.stats.byCompany) {
-    companyTable.innerHTML += `
-      <tr>
-        <td>${company}</td>
-        <td>${data.stats.byCompany[company]}</td>
-      </tr>
-    `;
-  }
+    if (data.stats.byCompany) {
+      for (const company in data.stats.byCompany) {
+        companyTable.innerHTML += `
+          <tr>
+            <td>${company}</td>
+            <td>${data.stats.byCompany[company]}</td>
+          </tr>
+        `;
+      }
+    }
 
-  // Senaste leads
-  const leadsTable = document.getElementById("latestLeads");
-  leadsTable.innerHTML = "";
+    // =========================
+    // GRAF – LEADS ÖVER TID
+    // =========================
+    const groupedByDate = {};
 
-  if (data.leads && data.leads.length > 0) {
-    data.leads.forEach(lead => {
-      leadsTable.innerHTML += `
+    if (data.leads && data.leads.length > 0) {
+      data.leads.forEach(lead => {
+        const date = new Date(lead.created_at).toLocaleDateString();
+        if (!groupedByDate[date]) groupedByDate[date] = 0;
+        groupedByDate[date]++;
+      });
+    }
+
+    const labels = Object.keys(groupedByDate);
+    const values = Object.values(groupedByDate);
+
+    const ctx = document.getElementById("leadsChart").getContext("2d");
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Leads",
+          data: values,
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59,130,246,0.2)",
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#94a3b8" },
+            grid: { color: "#334155" }
+          },
+          y: {
+            ticks: { color: "#94a3b8" },
+            grid: { color: "#334155" }
+          }
+        }
+      }
+    });
+
+    // =========================
+    // SENASTE LEADS
+    // =========================
+    const leadsTable = document.getElementById("latestLeads");
+    leadsTable.innerHTML = "";
+
+    if (data.leads && data.leads.length > 0) {
+      data.leads.forEach(lead => {
+        leadsTable.innerHTML += `
+          <tr>
+            <td>${new Date(lead.created_at).toLocaleString()}</td>
+            <td>${lead.company || "-"}</td>
+            <td>${lead.email || "-"}</td>
+            <td>${lead.phone || "-"}</td>
+            <td class="message-cell">${lead.message}</td>
+          </tr>
+        `;
+      });
+    } else {
+      leadsTable.innerHTML = `
         <tr>
-          <td>${new Date(lead.created_at).toLocaleString()}</td>
-          <td>${lead.company || "-"}</td>
-          <td>${lead.email || "-"}</td>
-          <td>${lead.phone || "-"}</td>
-          <td class="message-cell">${lead.message}</td>
+          <td colspan="5">Inga leads ännu</td>
         </tr>
       `;
-    });
-  } else {
-    leadsTable.innerHTML = `
-      <tr>
-        <td colspan="5">Inga leads ännu</td>
-      </tr>
-    `;
+    }
+
+  } catch (error) {
+    console.error("Dashboard error:", error);
   }
 }
 
 loadStats();
 </script>
-
-</body>
-</html>
