@@ -102,14 +102,14 @@ Uppmuntra kunden att besöka butik eller lämna kontakt för stylinghjälp.
       `Du är en professionell företags-AI som svarar hjälpsamt.`;
 
     // 🔥 OPENAI ANROP
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
-      temperature: 0.7,
-    });
+   const completion = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    { role: "system", content: systemPrompt },
+    ...(req.body.history || [])
+  ],
+  temperature: 0.7,
+});
 
     return res.status(200).json({
       reply: completion.choices[0].message.content
