@@ -20,89 +20,68 @@ export default async function handler(req, res) {
   }
 
   try {
-const { message, company } = req.body;
 
-// 🔥 LEAD DETECTION
-let leadMessage = null;
+    const { message, company } = req.body;
 
-if (message && message.match(/\d{7,}/)) {
-  console.log("📞 Lead detected:", message);
-  leadMessage = "Tack! Vi har noterat ditt telefonnummer och kontaktar dig snart.";
-}
+    // 🔥 LEAD DETECTION
+    let leadMessage = null;
 
-if (message && message.includes("@")) {
-  console.log("📧 Lead detected:", message);
-  leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snart.";
-}
+    if (message && message.match(/\d{7,}/)) {
+      console.log("📞 Lead detected:", message);
+      leadMessage = "Tack! Vi har noterat ditt telefonnummer och kontaktar dig snart.";
+    }
 
-if (!message) {
-  return res.status(400).json({ error: "Message is required" });
-}
+    if (message && message.includes("@")) {
+      console.log("📧 Lead detected:", message);
+      leadMessage = "Tack! Vi har noterat din e-postadress och återkommer snart.";
+    }
 
-// 🔥 STOPPA HÄR OM LEAD
-if (leadMessage) {
-  return res.status(200).json({
-    reply: leadMessage
-  });
-}
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
 
-// 🔥 ANNARS KÖR OPENAI
-const completion = await openai.chat.completions.create({
-  
+    // 🔥 STOPPA HÄR OM LEAD
+    if (leadMessage) {
+      return res.status(200).json({
+        reply: leadMessage
+      });
+    }
+
     // 🎯 OLIKA PERSONLIGHETER
-const personalities = {
-
-  bygg: `
+    const personalities = {
+      bygg: `
 Du är en professionell byggfirma AI.
-Du hjälper kunder med renovering, nybyggnation och projektplanering.
-Ställ följdfrågor om budget, tidsram och typ av projekt.
+Ställ följdfrågor om projekt, budget och tidsram.
 Nämn ROT-avdrag när relevant.
-Avsluta ofta med: "Vill du att vi kontaktar dig för en offert?"
-  `,
-
-  tandlakare: `
-Du är en trygg och professionell tandläkarklinik AI.
-Svara lugnt och pedagogiskt.
-Ställ frågor om symptom.
-Ge informativa men icke-diagnostiska råd.
-Erbjud alltid möjlighet att boka tid.
-  `,
-
-  gym: `
+Avsluta med att erbjuda offert.
+      `,
+      tandlakare: `
+Du är en trygg tandläkarklinik AI.
+Svara lugnt och erbjud tidsbokning.
+      `,
+      gym: `
 Du är en energisk personlig tränare.
-Ge konkreta tränings- och kostråd.
-Ställ frågor om mål (viktnedgång, muskler, kondition).
-Avsluta gärna med att erbjuda ett personligt träningsschema.
-  `,
-
-  frisor: `
+Ge tränings- och kostråd.
+      `,
+      frisor: `
 Du är en modern frisörsalong AI.
-Ge stilråd baserat på ansiktsform, hårtyp och trender.
-Föreslå färg, klippning och styling.
-Erbjud bokning av konsultation.
-  `,
-
-  mekaniker: `
+Ge stilråd och erbjud konsultation.
+      `,
+      mekaniker: `
 Du är en professionell bilverkstad AI.
-Ställ felsökningsfrågor.
-Förklara vanliga problem enkelt.
-Ge ungefärlig kostnadsindikation.
-Erbjud tidsbokning.
-  `,
-
-  klader: `
+Ställ felsökningsfrågor och erbjud bokning.
+      `,
+      klader: `
 Du är en modebutik AI.
-Ge stilråd och kombinationstips.
-Fråga om tillfälle (fest, vardag, jobb).
-Föreslå outfits.
-Uppmuntra kunden att besöka butiken.
-  `
-};
+Ge stilförslag och kombinationstips.
+      `
+    };
 
     const systemPrompt =
       personalities[company] ||
-      `Du är en professionell företags-AI som svarar hjälpsamt och tydligt.`;
+      `Du är en professionell företags-AI som svarar hjälpsamt.`;
 
+    // 🔥 OPENAI ANROP
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
