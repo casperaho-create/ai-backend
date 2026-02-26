@@ -5,6 +5,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const ADMIN_PASSWORD = "Volvob234!";
 
+  const dashboard = document.getElementById("dashboard");
+  dashboard.style.display = "none";
+
   const loginBox = document.createElement("div");
   loginBox.style = `
     display:flex;
@@ -31,21 +34,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.body.appendChild(loginBox);
 
+  function unlock() {
+    loginBox.remove();
+    dashboard.style.display = "block";
+    startDashboard();
+  }
+
   document.getElementById("loginBtn").onclick = function () {
     const value = document.getElementById("adminPass").value;
 
     if (value === ADMIN_PASSWORD) {
       sessionStorage.setItem("admin_auth", "true");
-      loginBox.remove();
-      startDashboard();
+      unlock();
     } else {
       document.getElementById("errorMsg").innerText = "Fel lösenord";
     }
   };
 
   if (sessionStorage.getItem("admin_auth") === "true") {
-    loginBox.remove();
-    startDashboard();
+    unlock();
   }
 
   function startDashboard() {
@@ -59,22 +66,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (!data || !data.stats) return;
 
-        const totalEl = document.getElementById("total");
-        if (totalEl) totalEl.textContent = data.stats.total || 0;
+        document.getElementById("total").textContent = data.stats.total || 0;
 
         const companyTable = document.getElementById("companyStats");
-        if (companyTable) {
-          companyTable.innerHTML = "";
-          const companies = data.stats.byCompany || {};
-          Object.keys(companies).forEach(company => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${company}</td>
-              <td>${companies[company]}</td>
-            `;
-            companyTable.appendChild(row);
-          });
-        }
+        companyTable.innerHTML = "";
+        const companies = data.stats.byCompany || {};
+        Object.keys(companies).forEach(company => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${company}</td>
+            <td>${companies[company]}</td>
+          `;
+          companyTable.appendChild(row);
+        });
 
         const grouped = {};
         (data.leads || []).forEach(lead => {
@@ -84,7 +88,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         const canvas = document.getElementById("leadsChart");
-
         if (canvas && typeof Chart !== "undefined") {
           const ctx = canvas.getContext("2d");
           if (chart) chart.destroy();
@@ -105,24 +108,22 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const leadsTable = document.getElementById("latestLeads");
-        if (leadsTable) {
-          leadsTable.innerHTML = "";
-          if (data.leads && data.leads.length > 0) {
-            data.leads.forEach(lead => {
-              const row = document.createElement("tr");
-              row.innerHTML = `
-                <td>${new Date(lead.created_at).toLocaleString()}</td>
-                <td>${lead.company || "-"}</td>
-                <td>${lead.email || "-"}</td>
-                <td>${lead.phone || "-"}</td>
-                <td>${lead.message || "-"}</td>
-              `;
-              leadsTable.appendChild(row);
-            });
-          } else {
-            leadsTable.innerHTML =
-              "<tr><td colspan='5'>Inga leads ännu</td></tr>";
-          }
+        leadsTable.innerHTML = "";
+        if (data.leads && data.leads.length > 0) {
+          data.leads.forEach(lead => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${new Date(lead.created_at).toLocaleString()}</td>
+              <td>${lead.company || "-"}</td>
+              <td>${lead.email || "-"}</td>
+              <td>${lead.phone || "-"}</td>
+              <td>${lead.message || "-"}</td>
+            `;
+            leadsTable.appendChild(row);
+          });
+        } else {
+          leadsTable.innerHTML =
+            "<tr><td colspan='5'>Inga leads ännu</td></tr>";
         }
 
       } catch (err) {
