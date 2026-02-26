@@ -3,156 +3,136 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-  /* =========================
-     🔐 LÖSENORD
-  ========================= */
+  const ADMIN_PASSWORD = "Volvob234!";
 
-  const ADMIN_PASSWORD = "Volvob234!"; // byt
+  const loginBox = document.createElement("div");
+  loginBox.style = `
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:#0f172a;
+    font-family:Arial;
+  `;
 
-  function protectPage() {
-    try {
-      const saved = sessionStorage.getItem("admin_auth");
+  loginBox.innerHTML = `
+    <div style="background:white;padding:30px;border-radius:12px;text-align:center;">
+      <h2>Admin Login</h2>
+      <input type="password" id="adminPass" placeholder="Lösenord"
+        style="padding:10px;margin-top:10px;width:200px;">
+      <br><br>
+      <button id="loginBtn"
+        style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;">
+        Logga in
+      </button>
+      <p id="errorMsg" style="color:red;margin-top:10px;"></p>
+    </div>
+  `;
 
-      if (saved === ADMIN_PASSWORD) return true;
+  document.body.appendChild(loginBox);
 
-      const input = prompt("Ange lösenord:");
+  document.getElementById("loginBtn").onclick = function () {
+    const value = document.getElementById("adminPass").value;
 
-      if (input === ADMIN_PASSWORD) {
-        sessionStorage.setItem("admin_auth", input);
-        return true;
-      }
-
-      document.body.innerHTML =
-        "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:#0f172a;color:white;font-family:Arial'><h1>❌ Fel lösenord</h1></div>";
-      return false;
-
-    } catch (err) {
-      console.error("Password error:", err);
-      return false;
+    if (value === ADMIN_PASSWORD) {
+      sessionStorage.setItem("admin_auth", "true");
+      loginBox.remove();
+      startDashboard();
+    } else {
+      document.getElementById("errorMsg").innerText = "Fel lösenord";
     }
+  };
+
+  if (sessionStorage.getItem("admin_auth") === "true") {
+    loginBox.remove();
+    startDashboard();
   }
 
-  if (!protectPage()) return;
+  function startDashboard() {
 
-  /* =========================
-     📊 DASHBOARD
-  ========================= */
+    let chart = null;
 
-  let chart = null;
+    async function loadStats() {
+      try {
+        const res = await fetch("/api/chatkit/session");
+        const data = await res.json();
 
-  async function loadStats() {
-    try {
-      const res = await fetch("/api/chatkit/session");
+        if (!data || !data.stats) return;
 
-      if (!res.ok) {
-        console.error("API error:", res.status);
-        return;
-      }
+        const totalEl = document.getElementById("total");
+        if (totalEl) totalEl.textContent = data.stats.total || 0;
 
-      const data = await res.json();
-
-      if (!data || !data.stats) {
-        console.error("Invalid data:", data);
-        return;
-      }
-
-      /* TOTAL */
-      const totalEl = document.getElementById("total");
-      if (totalEl) totalEl.textContent = data.stats.total || 0;
-
-      /* LEADS PER FÖRETAG */
-      const companyTable = document.getElementById("companyStats");
-      if (companyTable) {
-        companyTable.innerHTML = "";
-
-        const companies = data.stats.byCompany || {};
-
-        Object.keys(companies).forEach(company => {
-          const row = document.createElement("tr");
-
-          row.innerHTML = `
-            <td>${company}</td>
-            <td>${companies[company]}</td>
-          `;
-
-          companyTable.appendChild(row);
-        });
-      }
-
-      /* GRAF */
-      const grouped = {};
-
-      (data.leads || []).forEach(lead => {
-        if (!lead.created_at) return;
-        const date = new Date(lead.created_at).toLocaleDateString();
-        grouped[date] = (grouped[date] || 0) + 1;
-      });
-
-      const canvas = document.getElementById("leadsChart");
-
-      if (canvas && typeof Chart !== "undefined") {
-
-        const ctx = canvas.getContext("2d");
-
-        if (chart) chart.destroy();
-
-        chart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels: Object.keys(grouped),
-            datasets: [{
-              data: Object.values(grouped),
-              borderColor: "#3b82f6",
-              backgroundColor: "rgba(59,130,246,0.2)",
-              tension: 0.3,
-              fill: true
-            }]
-          },
-          options: {
-            plugins: { legend: { display: false } }
-          }
-        });
-      }
-
-      /* SENASTE LEADS */
-      const leadsTable = document.getElementById("latestLeads");
-
-      if (leadsTable) {
-        leadsTable.innerHTML = "";
-
-        if (data.leads && data.leads.length > 0) {
-
-          data.leads.forEach(lead => {
+        const companyTable = document.getElementById("companyStats");
+        if (companyTable) {
+          companyTable.innerHTML = "";
+          const companies = data.stats.byCompany || {};
+          Object.keys(companies).forEach(company => {
             const row = document.createElement("tr");
-
             row.innerHTML = `
-              <td>${lead.created_at ? new Date(lead.created_at).toLocaleString() : "-"}</td>
-              <td>${lead.company || "-"}</td>
-              <td>${lead.email || "-"}</td>
-              <td>${lead.phone || "-"}</td>
-              <td>${lead.message || "-"}</td>
+              <td>${company}</td>
+              <td>${companies[company]}</td>
             `;
-
-            leadsTable.appendChild(row);
+            companyTable.appendChild(row);
           });
-
-        } else {
-          leadsTable.innerHTML =
-            "<tr><td colspan='5'>Inga leads ännu</td></tr>";
         }
+
+        const grouped = {};
+        (data.leads || []).forEach(lead => {
+          if (!lead.created_at) return;
+          const date = new Date(lead.created_at).toLocaleDateString();
+          grouped[date] = (grouped[date] || 0) + 1;
+        });
+
+        const canvas = document.getElementById("leadsChart");
+
+        if (canvas && typeof Chart !== "undefined") {
+          const ctx = canvas.getContext("2d");
+          if (chart) chart.destroy();
+          chart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: Object.keys(grouped),
+              datasets: [{
+                data: Object.values(grouped),
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59,130,246,0.2)",
+                tension: 0.3,
+                fill: true
+              }]
+            },
+            options: { plugins: { legend: { display: false } } }
+          });
+        }
+
+        const leadsTable = document.getElementById("latestLeads");
+        if (leadsTable) {
+          leadsTable.innerHTML = "";
+          if (data.leads && data.leads.length > 0) {
+            data.leads.forEach(lead => {
+              const row = document.createElement("tr");
+              row.innerHTML = `
+                <td>${new Date(lead.created_at).toLocaleString()}</td>
+                <td>${lead.company || "-"}</td>
+                <td>${lead.email || "-"}</td>
+                <td>${lead.phone || "-"}</td>
+                <td>${lead.message || "-"}</td>
+              `;
+              leadsTable.appendChild(row);
+            });
+          } else {
+            leadsTable.innerHTML =
+              "<tr><td colspan='5'>Inga leads ännu</td></tr>";
+          }
+        }
+
+      } catch (err) {
+        console.error("Dashboard error:", err);
       }
-
-    } catch (error) {
-      console.error("Dashboard crash:", error);
     }
+
+    loadStats();
+    setInterval(loadStats, 30000);
   }
-
-  /* =========================
-     🔄 AUTO REFRESH
-  ========================= */
-
-  loadStats();
-  setInterval(loadStats, 30000);
 
 });
 </script>
