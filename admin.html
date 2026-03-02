@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>AI Lead Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {
   margin:0;
@@ -11,18 +12,22 @@ body {
   background:#0f172a;
   color:white;
 }
+
 h1,h2 {
   margin-left:20px;
 }
+
 table {
   width:90%;
   margin:20px;
   border-collapse:collapse;
 }
+
 td, th {
   padding:10px;
   border-bottom:1px solid #334155;
 }
+
 canvas {
   background:white;
   border-radius:8px;
@@ -34,9 +39,23 @@ canvas {
 
 <body>
 
-<!-- DASHBOARD (dold tills login) -->
-<div id="dashboard" style="display:none; padding-bottom:40px;">
+<!-- LOGIN -->
+<div id="loginContainer" style="display:flex;justify-content:center;align-items:center;height:100vh;">
+  <div style="background:white;color:black;padding:30px;border-radius:12px;text-align:center;">
+    <h2>Admin Login</h2>
+    <input type="password" id="adminPass" placeholder="Lösenord"
+      style="padding:10px;margin-top:10px;width:200px;">
+    <br><br>
+    <button id="loginBtn"
+      style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;">
+      Logga in
+    </button>
+    <p id="errorMsg" style="color:red;margin-top:10px;"></p>
+  </div>
+</div>
 
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none; padding-bottom:40px;">
   <h1>🚀 AI Lead Dashboard</h1>
 
   <h2>Total Leads</h2>
@@ -54,68 +73,43 @@ canvas {
   <table>
     <tbody id="latestLeads"></tbody>
   </table>
-
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
-  const ADMIN_PASSWORD = "Volvob234!";
-
+  const loginContainer = document.getElementById("loginContainer");
   const dashboard = document.getElementById("dashboard");
 
-  /* ======================
-     LOGIN UI
-  ====================== */
+  /* =====================
+     LOGIN VIA BACKEND
+  ===================== */
 
-  const loginBox = document.createElement("div");
-  loginBox.style = `
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-  `;
+  async function login(password) {
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ password })
+    });
 
-  loginBox.innerHTML = `
-    <div style="background:white;color:black;padding:30px;border-radius:12px;text-align:center;">
-      <h2>Admin Login</h2>
-      <input type="password" id="adminPass" placeholder="Lösenord"
-        style="padding:10px;margin-top:10px;width:200px;">
-      <br><br>
-      <button id="loginBtn"
-        style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;">
-        Logga in
-      </button>
-      <p id="errorMsg" style="color:red;margin-top:10px;"></p>
-    </div>
-  `;
-
-  document.body.appendChild(loginBox);
-
-  function unlock() {
-    loginBox.remove();
-    dashboard.style.display = "block";
-    startDashboard();
+    if (res.ok) {
+      loginContainer.style.display = "none";
+      dashboard.style.display = "block";
+      startDashboard();
+    } else {
+      document.getElementById("errorMsg").innerText = "Fel lösenord";
+    }
   }
 
   document.getElementById("loginBtn").onclick = function () {
     const value = document.getElementById("adminPass").value;
-
-    if (value === ADMIN_PASSWORD) {
-      sessionStorage.setItem("admin_auth", "true");
-      unlock();
-    } else {
-      document.getElementById("errorMsg").innerText = "Fel lösenord";
-    }
+    login(value);
   };
 
-  if (sessionStorage.getItem("admin_auth") === "true") {
-    unlock();
-  }
-
-  /* ======================
-     DASHBOARD LOGIK
-  ====================== */
+  /* =====================
+     DASHBOARD
+  ===================== */
 
   function startDashboard() {
 
@@ -123,15 +117,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function loadStats() {
       try {
-        const res = await fetch("/api/chatkit/session");
-        const data = await res.json();
+        const res = await fetch("/api/admin/stats", {
+          credentials: "include"
+        });
 
+        if (res.status === 401) {
+          // inte inloggad
+          dashboard.style.display = "none";
+          loginContainer.style.display = "flex";
+          return;
+        }
+
+        const data = await res.json();
         if (!data || !data.stats) return;
 
-        document.getElementById("total").textContent = data.stats.total || 0;
+        // TOTAL
+        document.getElementById("total").textContent =
+          data.stats.total || 0;
 
+        // PER FÖRETAG
         const companyTable = document.getElementById("companyStats");
         companyTable.innerHTML = "";
+
         const companies = data.stats.byCompany || {};
         Object.keys(companies).forEach(company => {
           const row = document.createElement("tr");
@@ -142,6 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
           companyTable.appendChild(row);
         });
 
+        // GRAF
         const grouped = {};
         (data.leads || []).forEach(lead => {
           if (!lead.created_at) return;
@@ -153,7 +161,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (canvas && typeof Chart !== "undefined") {
           const ctx = canvas.getContext("2d");
+
           if (chart) chart.destroy();
+
           chart = new Chart(ctx, {
             type: "line",
             data: {
@@ -166,10 +176,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 fill: true
               }]
             },
-            options: { plugins: { legend: { display: false } } }
+            options: {
+              plugins: { legend: { display: false } }
+            }
           });
         }
 
+        // SENASTE LEADS
         const leadsTable = document.getElementById("latestLeads");
         leadsTable.innerHTML = "";
 
@@ -177,7 +190,7 @@ document.addEventListener("DOMContentLoaded", function () {
           data.leads.forEach(lead => {
             const row = document.createElement("tr");
             row.innerHTML = `
-              <td>${new Date(lead.created_at).toLocaleString()}</td>
+              <td>${lead.created_at ? new Date(lead.created_at).toLocaleString() : "-"}</td>
               <td>${lead.company || "-"}</td>
               <td>${lead.email || "-"}</td>
               <td>${lead.phone || "-"}</td>
