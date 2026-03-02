@@ -22,11 +22,32 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 📊 GET = Statistik + senaste leads
+  // =====================================================
+  // 📊 GET – Hämta statistik (ADMIN)
+  // =====================================================
   if (req.method === "GET") {
+    const { api_key } = req.query;
+
+    if (!api_key) {
+      return res.status(400).json({ error: "API key required" });
+    }
+
+    // 🔎 Hitta företag
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("api_key", api_key)
+      .single();
+
+    if (companyError || !company) {
+      return res.status(400).json({ error: "Invalid API key" });
+    }
+
+    // 📊 Hämta endast deras leads
     const { data, error } = await supabase
       .from("leads")
       .select("*")
+      .eq("company_id", company.id)
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -36,47 +57,57 @@ export default async function handler(req, res) {
 
     const total = data.length;
 
-    const byCompany = {};
-    data.forEach((lead) => {
-      const key = lead.company || "okant";
-      if (!byCompany[key]) byCompany[key] = 0;
-      byCompany[key]++;
-    });
-
     return res.status(200).json({
       stats: {
         total,
-        byCompany,
       },
       leads: data,
     });
   }
 
+  // =====================================================
+  // ❌ FEL METHOD
+  // =====================================================
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const { message, company } = req.body;
+    const { message, api_key } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    if (!api_key) {
+      return res.status(400).json({ error: "API key missing" });
+    }
+
+    // 🔎 Hitta företag via api_key
+    const { data: company, error: companyError } = await supabase
+      .from("companies")
+      .select("*")
+      .eq("api_key", api_key)
+      .single();
+
+    if (companyError || !company) {
+      return res.status(400).json({ error: "Invalid API key" });
+    }
+
     const phoneMatch = message.match(/\d{7,}/);
     const emailMatch = message.match(/\S+@\S+\.\S+/);
 
-    // =========================
+    // =====================================================
     // 🔥 LEAD DETECTION
-    // =========================
+    // =====================================================
     if (phoneMatch || emailMatch) {
       const leadId = Math.floor(Math.random() * 1000000);
-      const companyName = company || "okant";
 
-      // 💾 Spara i Supabase
+      // 💾 Spara lead med company_id
       await supabase.from("leads").insert([
         {
-          company: companyName,
+          company_id: company.id,
+          company: company.name,
           message,
           email: emailMatch ? emailMatch[0] : null,
           phone: phoneMatch ? phoneMatch[0] : null,
@@ -88,7 +119,7 @@ export default async function handler(req, res) {
         from: "AI Lead <onboarding@resend.dev>",
         to: "casper.aho@gmail.com",
         reply_to: emailMatch ? emailMatch[0] : undefined,
-        subject: `🔥 Ny lead #${leadId} från ${companyName.toUpperCase()}`,
+        subject: `🔥 Ny lead #${leadId} från ${company.name.toUpperCase()}`,
         html: `
         <div style="font-family: Arial; background:#0f172a; padding:40px;">
           <div style="max-width:650px; margin:auto; background:white; padding:30px; border-radius:12px;">
@@ -96,20 +127,10 @@ export default async function handler(req, res) {
             <p><strong>ID:</strong> #${leadId}</p>
             <p><strong>Tid:</strong> ${new Date().toLocaleString()}</p>
             <hr>
-            <p><strong>Bransch:</strong> ${companyName}</p>
+            <p><strong>Företag:</strong> ${company.name}</p>
             <div style="background:#f1f5f9; padding:15px; border-radius:8px;">
               ${message}
             </div>
-            ${
-              emailMatch
-                ? `<p style="margin-top:20px;">
-                    <a href="mailto:${emailMatch[0]}" 
-                       style="background:#2563eb;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;">
-                       Svara direkt till kunden
-                    </a>
-                  </p>`
-                : ""
-            }
           </div>
         </div>
         `,
@@ -121,27 +142,17 @@ export default async function handler(req, res) {
       });
     }
 
-    // =========================
-    // 🎭 PERSONLIGHETER
-    // =========================
-    const personalities = {
-      bygg: `Du är en professionell byggfirma. Ställ frågor om projekt, budget och tidsram. Försök få kontaktuppgifter.`,
-      tandlakare: `Du är en trygg tandläkarklinik. Visa empati och föreslå bokning.`,
-      gym: `Du är en energisk PT. Fråga om mål och erbjud konsultation.`,
-      frisor: `Du är en trendig frisör. Fråga om stil och erbjud bokning.`,
-      mekaniker: `Du är en kunnig bilverkstad. Förklara enkelt och erbjud tidsbokning.`,
-      klader: `Du är en stilmedveten modebutik. Föreslå outfits och uppmuntra köp.`,
-    };
-
-    const systemPrompt =
-      personalities[company] ||
-      `Du är en professionell företags-AI. Var säljande och försök naturligt få kontaktuppgifter.`;
-
-    // 🤖 OPENAI
+    // =====================================================
+    // 🤖 AI SVAR
+    // =====================================================
     const aiResponse = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: systemPrompt },
+        {
+          role: "system",
+          content:
+            "Du är en professionell företags-AI. Var säljande och försök naturligt få kontaktuppgifter.",
+        },
         { role: "user", content: message },
       ],
       temperature: 0.8,
@@ -150,7 +161,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       reply: aiResponse.choices[0].message.content,
     });
-
   } catch (error) {
     console.error("SERVER ERROR:", error);
     return res.status(500).json({
