@@ -14,6 +14,7 @@
       height: 100vh;
       margin: 0;
     }
+
     .card {
       background: #111827;
       padding: 40px;
@@ -21,9 +22,11 @@
       width: 420px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     }
+
     h2 {
       margin-top: 0;
     }
+
     input, select {
       width: 100%;
       padding: 10px;
@@ -32,6 +35,7 @@
       border: none;
       font-size: 14px;
     }
+
     button {
       width: 100%;
       padding: 12px;
@@ -41,14 +45,45 @@
       color: white;
       font-weight: bold;
       cursor: pointer;
+      margin-bottom: 10px;
     }
+
     button:hover {
       background: #2563eb;
     }
+
+    .hidden {
+      display: none;
+    }
+
+    .success-box {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #374151;
+    }
+
+    .step {
+      margin-bottom: 20px;
+    }
+
+    .code-box {
+      background: #1f2937;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      word-break: break-all;
+      margin-top: 10px;
+    }
+
+    .success {
+      color: #10b981;
+      font-weight: bold;
+      margin-top: 10px;
+    }
   </style>
 </head>
-<body>
 
+<body>
   <div class="card">
     <h2>Skapa Företagskonto</h2>
 
@@ -67,13 +102,35 @@
     <input id="password" type="password" placeholder="Lösenord" />
 
     <button onclick="register()">Skapa konto</button>
+
+    <div id="result" class="hidden success-box">
+      <h3>🎉 Konto skapat!</h3>
+
+      <div class="step">
+        <h4>Steg 1 – Kopiera koden</h4>
+        <div id="installCode" class="code-box"></div>
+        <button onclick="copyInstall()">Kopiera kod</button>
+      </div>
+
+      <div class="step">
+        <h4>Steg 2 – Lägg in på din hemsida</h4>
+        <p>Klistra in koden precis före <code>&lt;/body&gt;</code> på din hemsida.</p>
+      </div>
+
+      <div class="step">
+        <h4>Steg 3 – Klart 🚀</h4>
+        <div class="success">Chatten är nu live på din hemsida!</div>
+      </div>
+    </div>
   </div>
 
   <script>
+    let currentKey = "";
+
     async function register() {
-      const name = document.getElementById("name").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
       const company_type = document.getElementById("company_type").value;
 
       if (!name || !email || !password || !company_type) {
@@ -81,41 +138,33 @@
         return;
       }
 
-      try {
-        const res = await fetch("https://ai-backend-ltel.vercel.app/api/admin/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            name,
-            email,
-            password,
-            company_type
-          })
-        });
+      const res = await fetch("/api/admin/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, company_type })
+      });
 
-        const data = await res.json();
+      const data = await res.json();
 
-        if (!res.ok) {
-          alert(data.error || "Något gick fel");
-          return;
-        }
+      if (data.success) {
+        currentKey = data.company.api_key;
 
-        if (data.success) {
-          // 🔐 Spara företagsdata temporärt
-          localStorage.setItem("companyData", JSON.stringify(data.company));
+        const installScript =
+          '<script>window.AI_COMPANY_KEY = "' + currentKey + '";<\/script>\n' +
+          '<script src="https://ai-backend-ltel.vercel.app/chat.js"><\/script>';
 
-          // 🚀 Skicka vidare till onboarding
-          window.location.href = "/admin/onboarding.html";
-        }
-
-      } catch (error) {
-        console.error("Register error:", error);
-        alert("Serverfel. Kolla Vercel logs.");
+        document.getElementById("installCode").innerText = installScript;
+        document.getElementById("result").classList.remove("hidden");
+      } else {
+        alert(data.error || "Något gick fel");
       }
     }
-  </script>
 
+    function copyInstall() {
+      const code = document.getElementById("installCode").innerText;
+      navigator.clipboard.writeText(code);
+      alert("Kod kopierad 🚀");
+    }
+  </script>
 </body>
 </html>
