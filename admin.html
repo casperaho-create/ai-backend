@@ -30,17 +30,18 @@
       margin-top: 0;
     }
 
-    input {
+    input, textarea {
       width: 100%;
       padding: 12px;
       margin-bottom: 15px;
       border-radius: 8px;
       border: none;
       outline: none;
+      font-family: Arial;
     }
 
     button {
-      padding: 12px 20px;
+      padding: 10px 18px;
       border: none;
       border-radius: 8px;
       background: #2563eb;
@@ -52,6 +53,15 @@
 
     button:hover {
       background: #1d4ed8;
+    }
+
+    .logout {
+      float: right;
+      background: #ef4444;
+    }
+
+    .logout:hover {
+      background: #dc2626;
     }
 
     .stats {
@@ -84,13 +94,8 @@
       display: none;
     }
 
-    .logout {
-      float: right;
-      background: #ef4444;
-    }
-
-    .logout:hover {
-      background: #dc2626;
+    .replyBox {
+      margin-top: 10px;
     }
 
   </style>
@@ -99,6 +104,7 @@
 
 <div class="container">
 
+  <!-- LOGIN -->
   <div id="loginBox" class="card">
     <h2>🔐 Företags‑login</h2>
     <input id="email" placeholder="Email" />
@@ -107,6 +113,7 @@
     <p id="error" style="color:#f87171;"></p>
   </div>
 
+  <!-- DASHBOARD -->
   <div id="dashboard">
 
     <div class="card">
@@ -131,11 +138,14 @@
 </div>
 
 <script>
+
+const API_BASE = "https://ai-backend-ltel.vercel.app/api";
+
 async function login() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const res = await fetch("https://ai-backend-ltel.vercel.app/api/admin/login", {
+  const res = await fetch(API_BASE + "/admin/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -153,16 +163,16 @@ async function login() {
 }
 
 async function loadDashboard() {
+
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("dashboard").style.display = "block";
 
   document.getElementById("companyName").innerText =
     "🚀 " + sessionStorage.getItem("company_name");
 
-  const res = await fetch(
-    "https://ai-backend-ltel.vercel.app/api/admin/leads",
-    { credentials: "include" }
-  );
+  const res = await fetch(API_BASE + "/admin/leads", {
+    credentials: "include"
+  });
 
   const data = await res.json();
 
@@ -172,16 +182,67 @@ async function loadDashboard() {
   document.getElementById("totalLeads").innerText = data.leads.length;
 
   data.leads.forEach(lead => {
+
     const div = document.createElement("div");
     div.classList.add("lead");
+
     div.innerHTML = `
       <strong>${lead.email || "Ingen email"}</strong><br>
       ${lead.phone || "Ingen telefon"}<br><br>
       ${lead.message}<br>
       <small>${new Date(lead.created_at).toLocaleString()}</small>
+      ${
+        lead.email
+          ? `
+          <br><br>
+          <button onclick="toggleReply('${lead.email}')">
+            ✉️ Svara
+          </button>
+          <div class="replyBox" id="reply-${lead.email}" style="display:none;">
+            <textarea id="msg-${lead.email}" rows="3"
+              placeholder="Skriv ditt svar..."></textarea>
+            <button onclick="sendReply('${lead.email}')">
+              Skicka svar
+            </button>
+          </div>
+          `
+          : ""
+      }
     `;
+
     leadsDiv.appendChild(div);
   });
+}
+
+function toggleReply(email) {
+  const box = document.getElementById("reply-" + email);
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+async function sendReply(email) {
+
+  const message = document.getElementById("msg-" + email).value;
+
+  if (!message) {
+    alert("Skriv ett meddelande");
+    return;
+  }
+
+  const res = await fetch(API_BASE + "/admin/reply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ to: email, message })
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    alert("Svar skickat 🚀");
+    document.getElementById("msg-" + email).value = "";
+  } else {
+    alert("Något gick fel");
+  }
 }
 
 function logout() {
@@ -192,6 +253,7 @@ function logout() {
 if (sessionStorage.getItem("company_name")) {
   loadDashboard();
 }
+
 </script>
 
 </body>
