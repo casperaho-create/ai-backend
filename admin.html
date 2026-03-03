@@ -1,22 +1,133 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Login</title>
+  <title>AI Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 60px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+      margin-bottom: 30px;
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .statBox {
+      flex: 1;
+      min-width: 200px;
+      background: #0f172a;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .lead {
+      background: #0f172a;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    .lead small {
+      color: #94a3b8;
+    }
+
+    #dashboard {
+      display: none;
+    }
+
+    .logout {
+      float: right;
+      background: #ef4444;
+    }
+
+    .logout:hover {
+      background: #dc2626;
+    }
+
+  </style>
 </head>
 <body>
 
-<div id="loginBox">
-  <h2>Företags‑login</h2>
-  <input id="email" placeholder="Email" /><br><br>
-  <input id="password" type="password" placeholder="Lösenord" /><br><br>
-  <button onclick="login()">Logga in</button>
-  <p id="error" style="color:red;"></p>
-</div>
+<div class="container">
 
-<div id="dashboard" style="display:none;">
-  <h2 id="companyName"></h2>
-  <h3>Senaste Leads</h3>
-  <div id="leads"></div>
+  <div id="loginBox" class="card">
+    <h2>🔐 Företags‑login</h2>
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Lösenord" />
+    <button onclick="login()">Logga in</button>
+    <p id="error" style="color:#f87171;"></p>
+  </div>
+
+  <div id="dashboard">
+
+    <div class="card">
+      <h1 id="companyName"></h1>
+      <button class="logout" onclick="logout()">Logga ut</button>
+    </div>
+
+    <div class="stats">
+      <div class="statBox">
+        <h2 id="totalLeads">0</h2>
+        <p>Totala Leads</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📥 Senaste Leads</h2>
+      <div id="leads"></div>
+    </div>
+
+  </div>
+
 </div>
 
 <script>
@@ -37,9 +148,7 @@ async function login() {
     return;
   }
 
-  sessionStorage.setItem("company_id", data.company_id);
   sessionStorage.setItem("company_name", data.name);
-
   loadDashboard();
 }
 
@@ -48,12 +157,11 @@ async function loadDashboard() {
   document.getElementById("dashboard").style.display = "block";
 
   document.getElementById("companyName").innerText =
-    "Inloggad som: " + sessionStorage.getItem("company_name");
-
-  const companyId = sessionStorage.getItem("company_id");
+    "🚀 " + sessionStorage.getItem("company_name");
 
   const res = await fetch(
-    `https://ai-backend-ltel.vercel.app/api/admin/leads?company_id=${companyId}`
+    "https://ai-backend-ltel.vercel.app/api/admin/leads",
+    { credentials: "include" }
   );
 
   const data = await res.json();
@@ -61,19 +169,27 @@ async function loadDashboard() {
   const leadsDiv = document.getElementById("leads");
   leadsDiv.innerHTML = "";
 
+  document.getElementById("totalLeads").innerText = data.leads.length;
+
   data.leads.forEach(lead => {
     const div = document.createElement("div");
+    div.classList.add("lead");
     div.innerHTML = `
-      <hr>
       <strong>${lead.email || "Ingen email"}</strong><br>
-      ${lead.phone || "Ingen telefon"}<br>
-      ${lead.message}
+      ${lead.phone || "Ingen telefon"}<br><br>
+      ${lead.message}<br>
+      <small>${new Date(lead.created_at).toLocaleString()}</small>
     `;
     leadsDiv.appendChild(div);
   });
 }
 
-if (sessionStorage.getItem("company_id")) {
+function logout() {
+  sessionStorage.clear();
+  location.reload();
+}
+
+if (sessionStorage.getItem("company_name")) {
   loadDashboard();
 }
 </script>
