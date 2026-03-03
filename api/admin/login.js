@@ -26,7 +26,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Email and password required" });
     }
 
-    // 🔎 Hitta företag via email
     const { data: company, error } = await supabase
       .from("companies")
       .select("*")
@@ -37,17 +36,15 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // 🔐 Jämför hashat lösenord
     const validPassword = await bcrypt.compare(password, company.password);
 
     if (!validPassword) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // 🍪 Sätt säker cookie med company_id
     res.setHeader(
       "Set-Cookie",
-      `company_auth=${company.id}; HttpOnly; Path=/; SameSite=Strict; Secure`
+      `company_auth=${company.id}; HttpOnly; Path=/; SameSite=Strict`
     );
 
     return res.status(200).json({
