@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Välkommen 🚀</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #3b82f6;
+      color: white;
+    }
+
+    pre {
+      background: black;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: left;
+      overflow-x: auto;
+    }
+
+    .step {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Välkommen 🎉</h1>
+  <p id="companyName"></p>
+
+  <div class="step">
+    <h2>Steg 1 – Din API‑nyckel</h2>
+    <p id="apiKey"></p>
+    <button onclick="copyKey()">Kopiera API‑nyckel</button>
+  </div>
+
+  <div class="step">
+    <h2>Steg 2 – Installera chatten</h2>
+    <pre id="installCode"></pre>
+    <button onclick="copyInstall()">Kopiera installationskod</button>
+  </div>
+
+  <div class="step">
+    <h2>Steg 3 – Klart!</h2>
+    <p>Lägg in koden innan </body> på din hemsida.</p>
+  </div>
+</div>
+
+<script>
+const company = JSON.parse(localStorage.getItem("companyData"));
+
+if (!company) {
+  window.location.href = "register.html";
+}
+
+document.getElementById("companyName").innerText =
+  "Företag: " + company.name;
+
+document.getElementById("apiKey").innerText =
+  company.api_key;
+
+const installScript = `<script>
+window.AI_COMPANY_KEY = "${company.api_key}";
+<\/script>
+<script src="https://ai-backend-ltel.vercel.app/chat.js"><\/script>`;
+
+document.getElementById("installCode").innerText =
+  installScript;
+
+function copyKey() {
+  navigator.clipboard.writeText(company.api_key);
+  alert("API-nyckel kopierad 🚀");
+}
+
+function copyInstall() {
+  navigator.clipboard.writeText(installScript);
+  alert("Installationskod kopierad 🚀");
+}
+</script>
+
+</body>
+</html>
