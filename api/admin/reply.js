@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     }
 
     await resend.emails.send({
-      from: "AI Support <onboarding@resend.dev>",
+      from: "AI Support <kontakt@dindomän.se>",
       to,
       subject: "Svar på din förfrågan",
       html: `
