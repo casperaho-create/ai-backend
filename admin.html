@@ -1,218 +1,81 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>AI Lead Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:#0f172a;
-  color:white;
-}
-
-h1,h2 {
-  margin-left:20px;
-}
-
-table {
-  width:90%;
-  margin:20px;
-  border-collapse:collapse;
-}
-
-td, th {
-  padding:10px;
-  border-bottom:1px solid #334155;
-}
-
-canvas {
-  background:white;
-  border-radius:8px;
-  margin:20px;
-  padding:10px;
-}
-</style>
+  <title>Admin Login</title>
 </head>
-
 <body>
 
-<!-- LOGIN -->
-<div id="loginContainer" style="display:flex;justify-content:center;align-items:center;height:100vh;">
-  <div style="background:white;color:black;padding:30px;border-radius:12px;text-align:center;">
-    <h2>Admin Login</h2>
-    <input type="password" id="adminPass" placeholder="Lösenord"
-      style="padding:10px;margin-top:10px;width:200px;">
-    <br><br>
-    <button id="loginBtn"
-      style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:6px;">
-      Logga in
-    </button>
-    <p id="errorMsg" style="color:red;margin-top:10px;"></p>
-  </div>
+<div id="loginBox">
+  <h2>Företags‑login</h2>
+  <input id="email" placeholder="Email" /><br><br>
+  <input id="password" type="password" placeholder="Lösenord" /><br><br>
+  <button onclick="login()">Logga in</button>
+  <p id="error" style="color:red;"></p>
 </div>
 
-<!-- DASHBOARD -->
-<div id="dashboard" style="display:none; padding-bottom:40px;">
-  <h1>🚀 AI Lead Dashboard</h1>
-
-  <h2>Total Leads</h2>
-  <div id="total" style="font-size:28px; margin-left:20px;">0</div>
-
-  <h2>Leads per företag</h2>
-  <table>
-    <tbody id="companyStats"></tbody>
-  </table>
-
-  <h2>Leads över tid</h2>
-  <canvas id="leadsChart" height="100"></canvas>
-
-  <h2>Senaste Leads</h2>
-  <table>
-    <tbody id="latestLeads"></tbody>
-  </table>
+<div id="dashboard" style="display:none;">
+  <h2 id="companyName"></h2>
+  <h3>Senaste Leads</h3>
+  <div id="leads"></div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
-  const loginContainer = document.getElementById("loginContainer");
-  const dashboard = document.getElementById("dashboard");
+  const res = await fetch("https://ai-backend-ltel.vercel.app/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
 
-  /* =====================
-     LOGIN VIA BACKEND
-  ===================== */
+  const data = await res.json();
 
-  async function login(password) {
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ password })
-    });
-
-    if (res.ok) {
-      loginContainer.style.display = "none";
-      dashboard.style.display = "block";
-      startDashboard();
-    } else {
-      document.getElementById("errorMsg").innerText = "Fel lösenord";
-    }
+  if (!data.success) {
+    document.getElementById("error").innerText = "Fel uppgifter";
+    return;
   }
 
-  document.getElementById("loginBtn").onclick = function () {
-    const value = document.getElementById("adminPass").value;
-    login(value);
-  };
+  sessionStorage.setItem("company_id", data.company_id);
+  sessionStorage.setItem("company_name", data.name);
 
-  /* =====================
-     DASHBOARD
-  ===================== */
+  loadDashboard();
+}
 
-  function startDashboard() {
+async function loadDashboard() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
 
-    let chart = null;
+  document.getElementById("companyName").innerText =
+    "Inloggad som: " + sessionStorage.getItem("company_name");
 
-    async function loadStats() {
-      try {
-        const res = await fetch("/api/admin/stats", {
-          credentials: "include"
-        });
+  const companyId = sessionStorage.getItem("company_id");
 
-        if (res.status === 401) {
-          // inte inloggad
-          dashboard.style.display = "none";
-          loginContainer.style.display = "flex";
-          return;
-        }
+  const res = await fetch(
+    `https://ai-backend-ltel.vercel.app/api/admin/leads?company_id=${companyId}`
+  );
 
-        const data = await res.json();
-        if (!data || !data.stats) return;
+  const data = await res.json();
 
-        // TOTAL
-        document.getElementById("total").textContent =
-          data.stats.total || 0;
+  const leadsDiv = document.getElementById("leads");
+  leadsDiv.innerHTML = "";
 
-        // PER FÖRETAG
-        const companyTable = document.getElementById("companyStats");
-        companyTable.innerHTML = "";
+  data.leads.forEach(lead => {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <hr>
+      <strong>${lead.email || "Ingen email"}</strong><br>
+      ${lead.phone || "Ingen telefon"}<br>
+      ${lead.message}
+    `;
+    leadsDiv.appendChild(div);
+  });
+}
 
-        const companies = data.stats.byCompany || {};
-        Object.keys(companies).forEach(company => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${company}</td>
-            <td>${companies[company]}</td>
-          `;
-          companyTable.appendChild(row);
-        });
-
-        // GRAF
-        const grouped = {};
-        (data.leads || []).forEach(lead => {
-          if (!lead.created_at) return;
-          const date = new Date(lead.created_at).toLocaleDateString();
-          grouped[date] = (grouped[date] || 0) + 1;
-        });
-
-        const canvas = document.getElementById("leadsChart");
-
-        if (canvas && typeof Chart !== "undefined") {
-          const ctx = canvas.getContext("2d");
-
-          if (chart) chart.destroy();
-
-          chart = new Chart(ctx, {
-            type: "line",
-            data: {
-              labels: Object.keys(grouped),
-              datasets: [{
-                data: Object.values(grouped),
-                borderColor: "#3b82f6",
-                backgroundColor: "rgba(59,130,246,0.2)",
-                tension: 0.3,
-                fill: true
-              }]
-            },
-            options: {
-              plugins: { legend: { display: false } }
-            }
-          });
-        }
-
-        // SENASTE LEADS
-        const leadsTable = document.getElementById("latestLeads");
-        leadsTable.innerHTML = "";
-
-        if (data.leads && data.leads.length > 0) {
-          data.leads.forEach(lead => {
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${lead.created_at ? new Date(lead.created_at).toLocaleString() : "-"}</td>
-              <td>${lead.company || "-"}</td>
-              <td>${lead.email || "-"}</td>
-              <td>${lead.phone || "-"}</td>
-              <td>${lead.message || "-"}</td>
-            `;
-            leadsTable.appendChild(row);
-          });
-        } else {
-          leadsTable.innerHTML =
-            "<tr><td colspan='5'>Inga leads ännu</td></tr>";
-        }
-
-      } catch (err) {
-        console.error("Dashboard error:", err);
-      }
-    }
-
-    loadStats();
-    setInterval(loadStats, 30000);
-  }
-
-});
+if (sessionStorage.getItem("company_id")) {
+  loadDashboard();
+}
 </script>
 
 </body>
