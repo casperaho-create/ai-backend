@@ -1,47 +1,166 @@
-<script>
-let currentKey = "";
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <title>Skapa Företagskonto</title>
 
-async function register() {
-  const name = document.getElementById("name").value;
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const company_type = document.getElementById("company_type").value;
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
 
-  const res = await fetch("/api/admin/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, company_type })
-  });
+    .card {
+      background: #111827;
+      padding: 40px;
+      border-radius: 12px;
+      width: 420px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
 
-  const data = await res.json();
+    h2 {
+      margin-top: 0;
+    }
 
-  if (data.success) {
-    currentKey = data.company.api_key;
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+    }
 
-    // Visa API-nyckel
-    document.getElementById("apiKey").innerText = currentKey;
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
 
-    // 🔥 FIXAD INSTALLATIONSKOD (ingen script-krock)
-    const installScript =
-      '<script>window.AI_COMPANY_KEY = "' + currentKey + '";<\/script>\n' +
-      '<script src="https://DIN-VERCEL-URL/chat.js"><\/script>';
+    button:hover {
+      background: #2563eb;
+    }
 
-    document.getElementById("installCode").innerText = installScript;
+    .api-box {
+      background: #1f2937;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      word-break: break-all;
+      font-size: 12px;
+    }
 
-    document.getElementById("result").classList.remove("hidden");
-  } else {
-    alert(data.error);
-  }
-}
+    .hidden {
+      display: none;
+    }
 
-function copyKey() {
-  navigator.clipboard.writeText(currentKey);
-  alert("API-nyckel kopierad 🚀");
-}
+    .success-box {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #374151;
+    }
+  </style>
+</head>
+<body>
 
-function copyInstall() {
-  const code = document.getElementById("installCode").innerText;
-  navigator.clipboard.writeText(code);
-  alert("Installationskod kopierad 🚀");
-}
-</script>
+  <div class="card">
+    <h2>Skapa Företagskonto</h2>
+
+    <input id="name" placeholder="Företagsnamn" />
+
+    <select id="company_type">
+      <option value="">Välj företagstyp</option>
+      <option value="industri">Industri</option>
+      <option value="bygg">Bygg</option>
+      <option value="konsult">Konsult</option>
+      <option value="ehandel">E‑handel</option>
+      <option value="bilverkstad">Bilverkstad</option>
+    </select>
+
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Lösenord" />
+
+    <button onclick="register()">Skapa konto</button>
+
+    <div id="result" class="hidden success-box">
+      <h3>🎉 Konto skapat!</h3>
+
+      <p><strong>Din API‑nyckel:</strong></p>
+      <div id="apiKey" class="api-box"></div>
+
+      <button onclick="copyKey()">Kopiera API‑nyckel</button>
+
+      <h4>Installera chatten på din hemsida:</h4>
+      <div id="installCode" class="api-box"></div>
+
+      <button onclick="copyInstall()">Kopiera installationskod</button>
+    </div>
+  </div>
+
+  <script>
+    let currentKey = "";
+
+    async function register() {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const company_type = document.getElementById("company_type").value;
+
+      if (!name || !email || !password || !company_type) {
+        alert("Fyll i alla fält");
+        return;
+      }
+
+      const res = await fetch("/api/admin/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, company_type })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        currentKey = data.company.api_key;
+
+        // Visa API-nyckel
+        document.getElementById("apiKey").innerText = currentKey;
+
+        // 🔥 FIXAD installationskod (ingen script-krock)
+        const installScript =
+          '<script>window.AI_COMPANY_KEY = "' + currentKey + '";<\/script>\n' +
+          '<script src="https://DIN-VERCEL-URL/chat.js"><\/script>';
+
+        document.getElementById("installCode").innerText = installScript;
+
+        document.getElementById("result").classList.remove("hidden");
+      } else {
+        alert(data.error);
+      }
+    }
+
+    function copyKey() {
+      navigator.clipboard.writeText(currentKey);
+      alert("API‑nyckel kopierad 🚀");
+    }
+
+    function copyInstall() {
+      const code = document.getElementById("installCode").innerText;
+      navigator.clipboard.writeText(code);
+      alert("Installationskod kopierad 🚀");
+    }
+  </script>
+
+</body>
+</html>
