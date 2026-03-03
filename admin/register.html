@@ -125,46 +125,61 @@
   </div>
 
   <script>
-    let currentKey = "";
+  async function register() {
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const company_type = document.getElementById("company_type").value;
 
-    async function register() {
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const company_type = document.getElementById("company_type").value;
+    if (!name || !email || !password || !company_type) {
+      alert("Fyll i alla fält");
+      return;
+    }
 
-      if (!name || !email || !password || !company_type) {
-        alert("Fyll i alla fält");
-        return;
-      }
-
+    try {
       const res = await fetch("/api/admin/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, company_type })
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          company_type
+        })
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(text);
+        alert("Serverfel vid registrering");
+        return;
+      }
 
       const data = await res.json();
 
-      if (data.success) {
-        currentKey = data.company.api_key;
-
-        const installScript =
-          '<script>window.AI_COMPANY_KEY = "' + currentKey + '";<\/script>\n' +
-          '<script src="https://ai-backend-ltel.vercel.app/chat.js"><\/script>';
-
-        document.getElementById("installCode").innerText = installScript;
-        document.getElementById("result").classList.remove("hidden");
-      } else {
+      if (!data.success) {
         alert(data.error || "Något gick fel");
+        return;
       }
-    }
 
-    function copyInstall() {
-      const code = document.getElementById("installCode").innerText;
-      navigator.clipboard.writeText(code);
-      alert("Kod kopierad 🚀");
+      const apiKey = data.company.api_key;
+
+      const installScript =
+        '<script>window.AI_COMPANY_KEY = "' + apiKey + '";<\/script>\n' +
+        '<script src="https://ai-backend-ltel.vercel.app/chat.js"><\/script>';
+
+      document.getElementById("installCode").innerText = installScript;
+      document.getElementById("result").classList.remove("hidden");
+
+    } catch (err) {
+      console.error("REGISTER ERROR:", err);
+      alert("Kunde inte ansluta till servern");
     }
-  </script>
-</body>
-</html>
+  }
+
+  function copyInstall() {
+    const code = document.getElementById("installCode").innerText;
+    navigator.clipboard.writeText(code);
+    alert("Kod kopierad 🚀");
+  }
+</script>
