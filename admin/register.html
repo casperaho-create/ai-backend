@@ -2,37 +2,142 @@
 <html>
 <head>
   <title>Skapa konto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #111827;
+      padding: 40px;
+      border-radius: 12px;
+      width: 400px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .api-box {
+      background: #1f2937;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 15px;
+      word-break: break-all;
+      font-size: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-  <h2>Skapa företagskonto</h2>
 
-  <input id="name" placeholder="Företagsnamn"><br><br>
-  <input id="email" placeholder="Email"><br><br>
-  <input id="password" type="password" placeholder="Lösenord"><br><br>
+<div class="card">
+  <h2>Skapa Företagskonto</h2>
+
+  <input id="name" placeholder="Företagsnamn">
+
+  <select id="company_type">
+    <option value="">Välj företagstyp</option>
+    <option value="industri">Industri</option>
+    <option value="bygg">Bygg</option>
+    <option value="konsult">Konsult</option>
+    <option value="ehandel">E-handel</option>
+    <option value="bilverkstad">Bilverkstad</option>
+  </select>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Lösenord">
 
   <button onclick="register()">Skapa konto</button>
 
-  <script>
-    async function register() {
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  <div id="result" class="hidden">
+    <h3>🎉 Konto skapat!</h3>
 
-      const res = await fetch("/api/admin/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
+    <p><strong>Din API-nyckel:</strong></p>
+    <div id="apiKey" class="api-box"></div>
 
-      const data = await res.json();
+    <button onclick="copyKey()">Kopiera API-nyckel</button>
 
-      if (data.success) {
-        alert("Konto skapat! Din API-nyckel:\n\n" + data.company.api_key);
-        window.location.href = "/admin.html";
-      } else {
-        alert(data.error);
-      }
-    }
-  </script>
+    <h4>Installera chatten på din hemsida:</h4>
+    <div id="installCode" class="api-box"></div>
+
+    <button onclick="copyInstall()">Kopiera installationskod</button>
+  </div>
+</div>
+
+<script>
+let currentKey = "";
+
+async function register() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const company_type = document.getElementById("company_type").value;
+
+  const res = await fetch("/api/admin/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password, company_type })
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    currentKey = data.company.api_key;
+
+    document.getElementById("apiKey").innerText = currentKey;
+
+    const installScript = `
+<script>
+window.AI_COMPANY_KEY = "${currentKey}";
+</script>
+<script src="https://DIN-VERCEL-URL/chat.js"></script>
+    `;
+
+    document.getElementById("installCode").innerText = installScript;
+
+    document.getElementById("result").classList.remove("hidden");
+  } else {
+    alert(data.error);
+  }
+}
+
+function copyKey() {
+  navigator.clipboard.writeText(currentKey);
+  alert("API-nyckel kopierad 🚀");
+}
+
+function copyInstall() {
+  const code = document.getElementById("installCode").innerText;
+  navigator.clipboard.writeText(code);
+  alert("Installationskod kopierad 🚀");
+}
+</script>
+
 </body>
 </html>
