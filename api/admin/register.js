@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, company_type } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: "All fields required" });
@@ -37,13 +37,15 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from("companies")
       .insert([
-        {
-          name,
-          email,
-          password: hashedPassword,
-          api_key: apiKey
-        }
-      ])
+       .insert([
+  {
+    name,
+    email,
+    password: hashedPassword,
+    api_key: apiKey,
+    company_type
+  }
+])
       .select()
       .single();
 
