@@ -37,15 +37,14 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from("companies")
       .insert([
-       .insert([
-  {
-    name,
-    email,
-    password: hashedPassword,
-    api_key: apiKey,
-    company_type
-  }
-])
+        {
+          name,
+          email,
+          password: hashedPassword,
+          api_key: apiKey,
+          company_type
+        }
+      ])
       .select()
       .single();
 
