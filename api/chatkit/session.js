@@ -116,25 +116,25 @@ export default async function handler(req, res) {
 
       // 📧 Skicka mail
       await resend.emails.send({
-        from: "AI Lead <onboarding@resend.dev>",
-        to: "casper.aho@gmail.com",
-        reply_to: emailMatch ? emailMatch[0] : undefined,
-        subject: `🔥 Ny lead #${leadId} från ${company.name.toUpperCase()}`,
-        html: `
-        <div style="font-family: Arial; background:#0f172a; padding:40px;">
-          <div style="max-width:650px; margin:auto; background:white; padding:30px; border-radius:12px;">
-            <h1>🚀 Ny AI‑Lead</h1>
-            <p><strong>ID:</strong> #${leadId}</p>
-            <p><strong>Tid:</strong> ${new Date().toLocaleString()}</p>
-            <hr>
-            <p><strong>Företag:</strong> ${company.name}</p>
-            <div style="background:#f1f5f9; padding:15px; border-radius:8px;">
-              ${message}
-            </div>
-          </div>
-        </div>
-        `,
-      });
+  from: "AI Lead <onboarding@resend.dev>",
+  to: company.email,
+  reply_to: emailMatch ? emailMatch[0] : undefined,
+  subject: `🔥 Ny lead #${leadId} från ${company.name.toUpperCase()}`,
+  html: `
+  <div style="font-family: Arial; background:#0f172a; padding:40px;">
+    <div style="max-width:650px; margin:auto; background:white; padding:30px; border-radius:12px;">
+      <h1>🚀 Ny AI‑Lead</h1>
+      <p><strong>ID:</strong> #${leadId}</p>
+      <p><strong>Tid:</strong> ${new Date().toLocaleString()}</p>
+      <hr>
+      <p><strong>Företag:</strong> ${company.name}</p>
+      <div style="background:#f1f5f9; padding:15px; border-radius:8px;">
+        ${message}
+      </div>
+    </div>
+  </div>
+  `,
+});
 
       return res.status(200).json({
         reply:
