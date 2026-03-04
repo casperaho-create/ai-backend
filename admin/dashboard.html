@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8" />
+<title>Admin Dashboard</title>
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  padding: 40px;
+}
+h1 {
+  margin-top: 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #1f2937;
+  font-size: 14px;
+}
+button {
+  background: #ef4444;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+button:hover {
+  background: #dc2626;
+}
+.stat-box {
+  background: #1f2937;
+  padding: 20px;
+  border-radius: 10px;
+  display: inline-block;
+  margin-right: 20px;
+}
+</style>
+</head>
+<body>
+
+<h1>Admin Dashboard</h1>
+
+<div class="stat-box">
+  <h2 id="totalCompanies">0</h2>
+  <p>Totala företag</p>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Namn</th>
+      <th>Email</th>
+      <th>Typ</th>
+      <th>API‑nyckel</th>
+      <th>Skapad</th>
+      <th>Ta bort</th>
+    </tr>
+  </thead>
+  <tbody id="companyTable"></tbody>
+</table>
+
+<script>
+async function loadCompanies() {
+  const res = await fetch("/api/admin/getCompanies");
+  const data = await res.json();
+
+  const table = document.getElementById("companyTable");
+  table.innerHTML = "";
+
+  document.getElementById("totalCompanies").innerText = data.companies.length;
+
+  data.companies.forEach(company => {
+    const row = `
+      <tr>
+        <td>${company.name}</td>
+        <td>${company.email}</td>
+        <td>${company.company_type}</td>
+        <td>${company.api_key}</td>
+        <td>${new Date(company.created_at).toLocaleDateString()}</td>
+        <td>
+          <button onclick="deleteCompany('${company.id}')">Radera</button>
+        </td>
+      </tr>
+    `;
+    table.innerHTML += row;
+  });
+}
+
+async function deleteCompany(id) {
+  if (!confirm("Är du säker?")) return;
+
+  await fetch("/api/admin/deleteCompany", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id })
+  });
+
+  loadCompanies();
+}
+
+loadCompanies();
+</script>
+
+</body>
+</html>
